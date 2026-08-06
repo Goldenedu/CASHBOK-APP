@@ -150,7 +150,7 @@ window.CONFIG = {
     },
     student: {
       bookName: "Student List", prefix: "STU", sheetName: "Student",
-      requiredHeaders: ["NO", "Date", "FY", "ID", "FYID", "NAME", "FYID NAME", "CLASS", "CATEGORY", "PROMO", "STU STATUS", "TRNANSFER DATE", "STATUS", "GENDER", "PARENTS NAME", "PHONE NO", "ADDRESS", "CREATED BY", "CREATED AT", "UNIQUEID"]
+      requiredHeaders: ["NO","STU STATUS", "Date", "FY", "ID", "FYID", "NAME", "FYID NAME", "CLASS", "CATEGORY", "PROMO",  "TRNANSFER DATE", "STATUS", "GENDER", "PARENTS NAME", "PHONE NO", "ADDRESS", "CREATED BY", "CREATED AT", "UNIQUEID"]
     },
     promotion: {
       bookName: "Promotion List", prefix: "PRO", sheetName: "Promo",
