@@ -1,0 +1,463 @@
+<!-- views/hr.html -->
+<style>
+  /* 💡 A4 DUAL-COPY PAYSLIP PRINT STYLING */
+  #payslip-print-area { display: none; }
+
+  @media print {
+    #erp-workspace, #loading-overlay, .nav-btn, .view-panel, header {
+      display: none !important;
+    }
+    #payslip-print-area, #payslip-print-area * {
+      visibility: visible !important;
+    }
+    #payslip-print-area {
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: space-between !important;
+      position: absolute !important;
+      left: 0 !important; top: 0 !important;
+      width: 100% !important; height: 100vh !important;
+      background-color: white !important; color: black !important;
+      padding: 20px !important;
+      font-family: sans-serif !important;
+    }
+    .payslip-section {
+      height: 46vh !important;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: space-between !important;
+      border: 1px solid black !important;
+      padding: 15px !important;
+      border-radius: 8px !important;
+    }
+    .payslip-divider {
+      height: 4vh !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      font-size: 10px !important;
+      color: #64748b !important;
+    }
+  }
+</style>
+
+<div class="space-y-5">
+
+  <!-- ၁။ Sub-Tabs Navigation Bar -->
+  <div class="flex items-center gap-2 p-1.5 bg-[#0c1322] border border-slate-800 rounded-xl w-fit">
+    <button onclick="switchHrSubTab('payroll')" id="hr-tab-payroll" class="hr-sub-tab-btn px-4 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-2 border bg-teal-500/25 text-teal-300 border-teal-400/60 ring-2 ring-teal-500/30 opacity-100 shadow-teal-950/40">
+      <i class="fa-solid fa-money-check-dollar text-teal-400"></i> HR Payroll Exp Book
+    </button>
+    <button onclick="switchHrSubTab('fulltime')" id="hr-tab-fulltime" class="hr-sub-tab-btn px-4 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-2 border bg-emerald-950/20 border-emerald-500/20 text-emerald-400/60 opacity-60 hover:opacity-100">
+      <i class="fa-solid fa-user-check text-emerald-400"></i> Full Time Staff List (FID)
+    </button>
+    <button onclick="switchHrSubTab('parttime')" id="hr-tab-parttime" class="hr-sub-tab-btn px-4 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-2 border bg-purple-950/20 border-purple-500/20 text-purple-400/60 opacity-60 hover:opacity-100">
+      <i class="fa-solid fa-user-clock text-purple-400"></i> Part Time Staff List (PID)
+    </button>
+  </div>
+
+  <!-- SECTION A: HR PAYROLL EXP BOOK SECTION -->
+  <div id="hr-payroll-section" class="space-y-5">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div class="stats-card p-5 rounded-xl flex items-start gap-4">
+        <div class="p-3.5 rounded-lg bg-emerald-500/10 text-emerald-400"><i class="fa-solid fa-arrow-trend-up text-xl"></i></div>
+        <div><p class="text-[10px] uppercase font-bold text-slate-500">Total Income</p><h3 id="hr-pay-total-income" class="text-base font-extrabold text-white mt-1">0 MMK</h3></div>
+      </div>
+      <div class="stats-card p-5 rounded-xl flex items-start gap-4">
+        <div class="p-3.5 rounded-lg bg-rose-500/10 text-rose-400"><i class="fa-solid fa-arrow-trend-down text-xl"></i></div>
+        <div><p class="text-[10px] uppercase font-bold text-slate-500">Total Expense</p><h3 id="hr-pay-total-expense" class="text-base font-extrabold text-white mt-1">0 MMK</h3></div>
+      </div>
+      <div class="stats-card p-5 rounded-xl flex items-start gap-4">
+        <div class="p-3.5 rounded-lg bg-indigo-500/10 text-indigo-400"><i class="fa-solid fa-scale-balanced text-xl"></i></div>
+        <div><p class="text-[10px] uppercase font-bold text-slate-500">Balances</p><h3 id="hr-pay-balance" class="text-base font-extrabold text-white mt-1">0 MMK</h3></div>
+      </div>
+      <div class="stats-card p-5 rounded-xl flex items-start gap-4">
+        <div class="p-3.5 rounded-lg bg-sky-500/10 text-sky-400"><i class="fa-solid fa-list-check text-xl"></i></div>
+        <div><p class="text-[10px] uppercase font-bold text-slate-500">Total Entries</p><h3 id="hr-pay-entries-count" class="text-base font-extrabold text-white mt-1">0</h3></div>
+      </div>
+    </div>
+
+    <div class="flex flex-col lg:flex-row justify-between items-center bg-[#0c1322] border border-slate-800 p-4 rounded-xl gap-4">
+      <div class="flex flex-col sm:flex-row items-center gap-2.5 w-full lg:w-auto">
+        <div class="relative w-full sm:w-64">
+          <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
+          <input type="text" id="hr-payroll-search" oninput="onSearchInputHrPayroll()" placeholder="Search staff name, staff ID, position..." class="w-full pl-9 pr-4 py-2 text-xs rounded-lg bg-[#0f172a] border border-slate-800 text-white focus:outline-none focus:border-indigo-500 transition-all">
+        </div>
+
+        <div class="flex items-center gap-1.5 w-full sm:w-auto bg-[#0f172a] border border-slate-800 p-1 rounded-lg text-xs">
+          <span class="text-[10px] text-slate-400 font-bold px-1.5 uppercase">From:</span>
+          <input type="date" id="hr-date-from" onchange="onSearchInputHrPayroll()" class="bg-transparent text-white text-xs outline-none cursor-pointer">
+          <span class="text-[10px] text-slate-400 font-bold px-1.5 uppercase">To:</span>
+          <input type="date" id="hr-date-to" onchange="onSearchInputHrPayroll()" class="bg-transparent text-white text-xs outline-none cursor-pointer">
+          <button onclick="clearDateFilterHrPayroll()" class="p-1 text-slate-400 hover:text-rose-400 transition" title="Clear Date Filter"><i class="fa-solid fa-circle-xmark text-xs"></i></button>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2.5 w-full lg:w-auto justify-end">
+        <button onclick="loadHrPayrollData(false)" class="p-2 bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all"><i class="fa-solid fa-rotate text-xs"></i> Refresh</button>
+        <button onclick="exportToCSVHrPayroll()" class="p-2 bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all"><i class="fa-solid fa-file-export text-xs"></i> Export CSV</button>
+        <button onclick="openAddModalHrPayroll()" class="p-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-black flex items-center gap-1.5 shadow-lg shadow-indigo-600/10 transition-all"><i class="fa-solid fa-plus text-xs"></i> Add Payroll Entry</button>
+      </div>
+    </div>
+
+    <div class="table-container bg-[#0c1322] border border-slate-800 shadow-2xl relative overflow-x-auto">
+      <table class="w-full text-left border-collapse min-w-[1500px]">
+        <thead>
+          <tr class="bg-[#0e172a]">
+            <th scope="col" class="w-12 text-center text-slate-400 text-xs py-3">NO</th>
+            <th scope="col" class="w-28 text-slate-400 text-xs py-3">DATE</th>
+            <th scope="col" class="w-40 text-slate-400 text-xs py-3">CATEGORY</th>
+            <th scope="col" class="min-w-[280px] text-slate-400 text-xs py-3">DESCRIPTION</th>
+            <th scope="col" class="w-24 text-slate-400 text-xs py-3">METHOD</th>
+            <th scope="col" class="w-32 text-right text-emerald-400 text-xs py-3">DEBIT</th>
+            <th scope="col" class="w-32 text-right text-rose-400 text-xs py-3">CREDIT</th>
+            <th scope="col" class="w-36 text-right text-slate-400 text-xs py-3">BALANCES</th>
+            <th scope="col" class="w-32 text-right text-emerald-400 text-xs py-3">UNPAID BONUS</th>
+            <th scope="col" class="w-32 text-right text-teal-400 text-xs py-3">UNPAID FUND</th>
+            <th scope="col" class="w-36 text-slate-400 text-xs py-3">VR NO</th>
+            <th scope="col" class="w-24 text-slate-400 text-xs py-3">MY</th>
+            <th scope="col" class="w-28 text-slate-400 text-xs py-3">FY</th>
+            <th scope="col" class="w-28 text-center text-slate-400 text-xs py-3 right-0 sticky bg-[#0c1322] border-l border-slate-800 shadow-lg">ACTION</th>
+          </tr>
+        </thead>
+        <tbody id="hr-payroll-table-body" class="divide-y divide-slate-800/40 text-slate-300"></tbody>
+      </table>
+    </div>
+
+    <div class="flex flex-col sm:flex-row justify-between items-center gap-4 bg-[#0c1322] border border-slate-800 px-6 py-3.5 rounded-xl">
+      <div id="hr-pay-pagination-info" class="text-xs font-semibold text-slate-400 tracking-wide">Showing entries...</div>
+      <div class="flex items-center gap-2">
+        <button onclick="changePageHrPayroll(-1)" id="hr-pay-btn-prev" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white font-bold transition-all text-xs"><i class="fa-solid fa-chevron-left text-[10px]"></i> Previous</button>
+        <button onclick="changePageHrPayroll(1)" id="hr-pay-btn-next" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white font-bold transition-all text-xs">Next <i class="fa-solid fa-chevron-right text-[10px]"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION B: STAFF LIST SECTION -->
+  <div id="hr-staff-section" class="space-y-5 hidden">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4" id="staff-kpi-grid"></div>
+
+    <div class="flex flex-col md:flex-row justify-between items-center bg-[#0c1322] border border-slate-800 p-4 rounded-xl gap-4">
+      <div class="relative w-full md:w-[450px]">
+        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
+        <input type="text" id="staff-search-input" oninput="onSearchInputStaff()" placeholder="Search staff name, staff ID, position..." class="w-full pl-9 pr-4 py-2 text-xs rounded-lg bg-[#0f172a] border border-slate-800 text-white focus:outline-none focus:border-indigo-500 transition-all">
+      </div>
+
+      <div class="flex items-center gap-2.5 w-full md:w-auto justify-end flex-wrap">
+        <button onclick="loadStaffData(false)" class="p-2 bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all"><i class="fa-solid fa-rotate text-xs"></i> Refresh</button>
+        <button onclick="openGradeModal()" id="btn-edit-grade-hr" class="p-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-lg shadow-amber-600/10"><i class="fa-solid fa-sliders text-xs"></i> Edit Salary Grade</button>
+        <button onclick="exportToCSVStaff()" class="p-2 bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all"><i class="fa-solid fa-file-export text-xs"></i> Export CSV</button>
+        <button onclick="openAddModalStaff()" class="p-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-black flex items-center gap-1.5 shadow-lg shadow-indigo-600/10 transition-all"><i class="fa-solid fa-plus text-xs"></i> Add Staff Record</button>
+      </div>
+    </div>
+
+    <div class="table-container bg-[#0c1322] border border-slate-800 shadow-2xl relative overflow-x-auto">
+      <table class="w-full text-left border-collapse min-w-[1800px]">
+        <thead id="staff-table-head"></thead>
+        <tbody id="staff-table-body" class="divide-y divide-slate-800/40 text-slate-300"></tbody>
+      </table>
+    </div>
+
+    <div class="flex flex-col sm:flex-row justify-between items-center gap-4 bg-[#0c1322] border border-slate-800 px-6 py-3.5 rounded-xl">
+      <div id="staff-pagination-info" class="text-xs font-semibold text-slate-400 tracking-wide">Showing entries...</div>
+      <div class="flex items-center gap-2">
+        <button onclick="changePageStaff(-1)" id="staff-btn-prev" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white font-bold transition-all text-xs"><i class="fa-solid fa-chevron-left text-[10px]"></i> Previous</button>
+        <button onclick="changePageStaff(1)" id="staff-btn-next" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white font-bold transition-all text-xs">Next <i class="fa-solid fa-chevron-right text-[10px]"></i></button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ADD / EDIT HR PAYROLL MODAL -->
+<div id="hr-payroll-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+  <div class="bg-[#0c1322] border border-slate-800 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+    <div class="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-[#0e172a] shrink-0">
+      <h3 id="hr-payroll-form-title" class="text-sm font-black text-white uppercase tracking-wider">Add HR Payroll Entry</h3>
+      <button onclick="closeHrPayrollModal()" class="text-slate-500 hover:text-white transition"><i class="fa-solid fa-xmark text-sm"></i></button>
+    </div>
+
+    <form id="hr-payroll-form" onsubmit="saveHrPayrollForm(event)" class="p-6 space-y-4 overflow-y-auto flex-1 text-xs">
+      <input type="hidden" id="hr-pay-uniqueId">
+      
+      <div class="grid grid-cols-2 gap-4">
+        <div class="flex flex-col gap-1">
+          <label class="font-bold text-slate-400 uppercase tracking-wide">Date</label>
+          <input type="date" id="hr-pay-date" onchange="onStaffIdChangePayroll()" required class="w-full bg-[#0f172a] border border-slate-800 text-slate-100 rounded-lg p-2.5 outline-none focus:border-indigo-500">
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="font-bold text-slate-400 uppercase tracking-wide">Category</label>
+          <select id="hr-pay-category" onchange="onStaffIdChangePayroll()" required class="w-full bg-[#0f172a] border border-slate-800 text-slate-100 rounded-lg p-2.5 outline-none focus:border-indigo-500">
+            <option value="Full Time Salary">Full Time Salary</option>
+            <option value="Part Time Salary">Part Time Salary</option>
+            <option value="Full Time Bonus">Full Time Bonus</option>
+            <option value="Full Time Fund">Full Time Fund</option>
+            <option value="Opening">Opening</option>
+            <option value="Closing">Closing</option>
+            <option value="Transfer">Transfer</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div class="flex flex-col gap-1">
+          <label class="font-bold text-indigo-400 uppercase tracking-wide">Staff ID (ID ရိုက်ထည့်ရန်)</label>
+          <input type="number" id="hr-pay-staff-id" oninput="onStaffIdChangePayroll()" placeholder="e.g. 1" required class="w-full font-bold text-indigo-300 bg-[#0f172a] border border-slate-800 rounded-lg p-2.5 outline-none focus:border-indigo-500">
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="font-bold text-slate-400 uppercase tracking-wide">Method</label>
+          <select id="hr-pay-method" required class="w-full bg-[#0f172a] border border-slate-800 text-slate-100 rounded-lg p-2.5 outline-none focus:border-indigo-500">
+            <option value="Cash">Cash</option>
+            <option value="Bank">Bank</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div class="flex flex-col gap-1">
+          <label class="font-bold text-emerald-400 uppercase tracking-wide">Unpaid Bonus (Accrued)</label>
+          <input type="number" id="hr-pay-unpaid-bonus" value="0" readonly class="w-full text-right font-bold text-emerald-400 bg-[#0f172a] border border-slate-800 rounded-lg p-2.5 cursor-not-allowed">
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="font-bold text-teal-400 uppercase tracking-wide">Unpaid Fund (Accrued)</label>
+          <input type="number" id="hr-pay-unpaid-fund" value="0" readonly class="w-full text-right font-bold text-teal-400 bg-[#0f172a] border border-slate-800 rounded-lg p-2.5 cursor-not-allowed">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div class="flex flex-col gap-1">
+          <label class="font-bold text-emerald-400 uppercase tracking-wide">Debit (ရရှိငွေ)</label>
+          <input type="number" step="0.01" id="hr-pay-debit" value="0" class="w-full text-right text-emerald-400 font-bold bg-[#0f172a] border border-slate-800 rounded-lg p-2.5 outline-none focus:border-emerald-500">
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="font-bold text-rose-400 uppercase tracking-wide">Credit (ထုတ်ပေးလစာ - Auto)</label>
+          <input type="number" step="0.01" id="hr-pay-credit" value="0" readonly required class="w-full text-right text-rose-400 font-bold bg-[#0f172a] border border-slate-800 rounded-lg p-2.5 cursor-not-allowed">
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="font-bold text-slate-400 uppercase tracking-wide">Description (Auto-generated)</label>
+        <textarea id="hr-pay-description" rows="2" readonly required class="w-full bg-[#0f172a] border border-slate-800 text-slate-100 placeholder-slate-500 rounded-lg p-2.5 cursor-not-allowed" placeholder="[FID 001 Daw Thin Za Li, Full Time Salary Jul-26]..."></textarea>
+      </div>
+
+      <div class="flex justify-end items-center gap-3 pt-4 border-t border-slate-800">
+        <button type="button" onclick="closeHrPayrollModal()" class="px-4 py-2 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition">Cancel</button>
+        <button type="submit" class="px-5 py-2 rounded-lg text-xs font-black bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/10 transition-all">Confirm</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 💡 ADD / EDIT STAFF MODAL -->
+<div id="staff-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+  <div class="bg-[#0c1322] border border-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+    <div class="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-[#0e172a] shrink-0">
+      <h3 id="staff-form-title" class="text-sm font-black text-white uppercase tracking-wider">Add Staff Record</h3>
+      <button onclick="closeStaffModal()" class="text-slate-500 hover:text-white transition"><i class="fa-solid fa-xmark text-sm"></i></button>
+    </div>
+
+    <form id="staff-form" onsubmit="saveStaffForm(event)" class="p-6 space-y-4 overflow-y-auto flex-1 text-xs">
+      <input type="hidden" id="staff-uniqueId">
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="flex flex-col gap-1">
+          <label class="font-bold text-slate-400 uppercase tracking-wide">Join Date</label>
+          <input type="date" id="staff-joindate" required class="w-full bg-[#0f172a] border border-slate-800 text-slate-100 rounded-lg p-2.5 outline-none focus:border-indigo-500">
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="font-bold text-slate-400 uppercase tracking-wide">Staff Name (အမည်)</label>
+          <input type="text" id="staff-name" placeholder="e.g. Daw Thin Za Li" required class="w-full bg-[#0f172a] border border-slate-800 text-slate-100 rounded-lg p-2.5 outline-none focus:border-indigo-500">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="flex flex-col gap-1">
+          <label class="font-bold text-slate-400 uppercase tracking-wide">Education</label>
+          <select id="staff-education" class="w-full bg-[#0f172a] border border-slate-800 text-slate-100 rounded-lg p-2.5 outline-none focus:border-indigo-500"></select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="font-bold text-slate-400 uppercase tracking-wide">Position (ရာထူး)</label>
+          <select id="staff-position" class="w-full bg-[#0f172a] border border-slate-800 text-slate-100 rounded-lg p-2.5 outline-none focus:border-indigo-500"></select>
+        </div>
+      </div>
+
+      <!-- Full Time Fields -->
+      <div id="staff-fulltime-fields" class="space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="flex flex-col gap-1">
+            <label class="font-bold text-amber-400 uppercase tracking-wide">Salary Grade</label>
+            <select id="staff-grade" onchange="onSalaryGradeChangeStaff()" class="w-full bg-[#0f172a] border border-slate-800 text-amber-300 font-bold rounded-lg p-2.5 outline-none focus:border-amber-500"></select>
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="font-bold text-slate-400 uppercase tracking-wide">Working Days (လုပ်ငန်းရက်)</label>
+            <input type="number" id="staff-working-days" value="26" oninput="calculateLiveStaffSalary()" class="w-full bg-[#0f172a] border border-slate-800 text-slate-100 rounded-lg p-2.5 outline-none focus:border-indigo-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="flex flex-col gap-1">
+            <label class="font-bold text-emerald-400 uppercase tracking-wide">Basic Amt (အခြေခံလစာ)</label>
+            <input type="number" id="staff-basic" value="0" oninput="calculateLiveStaffSalary()" class="w-full bg-[#0f172a] border border-slate-800 text-emerald-400 font-bold rounded-lg p-2.5 outline-none focus:border-emerald-500">
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="font-bold text-rose-400 uppercase tracking-wide">Extra Amt (အပိုကြေး)</label>
+            <input type="number" id="staff-extra" value="0" oninput="calculateLiveStaffSalary()" class="w-full bg-[#0f172a] border border-slate-800 text-rose-400 font-bold rounded-lg p-2.5 outline-none focus:border-rose-500">
+          </div>
+        </div>
+
+        <!-- 💡 UPDATED PREVIEW CARD LAYOUT -->
+        <div class="bg-indigo-950/30 border border-indigo-500/20 p-3.5 rounded-xl space-y-2.5">
+          <!-- Row 1: BONUS & FUND -->
+          <div class="grid grid-cols-2 gap-2 text-center pb-2 border-b border-indigo-500/10">
+            <div>
+              <p class="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">BONUS</p>
+              <p id="preview-bonus" class="text-xs font-bold text-emerald-400">0 MMK</p>
+            </div>
+            <div>
+              <p class="text-[10px] text-teal-400 font-bold uppercase tracking-wider">FUND</p>
+              <p id="preview-fund" class="text-xs font-bold text-teal-400">0 MMK</p>
+            </div>
+          </div>
+          <!-- Row 2: TOTAL SALARY & NET SALARY -->
+          <div class="grid grid-cols-2 gap-2 text-center pt-0.5">
+            <div>
+              <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">TOTAL SALARY</p>
+              <p id="preview-total-salary" class="text-xs font-bold text-slate-200">0 MMK</p>
+            </div>
+            <div>
+              <p class="text-[10px] text-indigo-400 font-extrabold uppercase tracking-wider">NET SALARY</p>
+              <p id="preview-total-net" class="text-xs font-extrabold text-indigo-400">0 MMK</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Part Time Fields -->
+      <div id="staff-parttime-fields" class="hidden">
+        <div class="flex flex-col gap-1">
+          <label class="font-bold text-indigo-400 uppercase tracking-wide">Total Salary (စုစုပေါင်း လစာ)</label>
+          <input type="number" id="staff-total-salary" value="0" class="w-full bg-[#0f172a] border border-slate-800 text-indigo-300 font-bold rounded-lg p-2.5 outline-none focus:border-indigo-500">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="flex flex-col gap-1">
+          <label class="font-bold text-slate-400 uppercase tracking-wide">NRC No</label>
+          <input type="text" id="staff-nrc" placeholder="12/MAMANA(N)123456" class="w-full bg-[#0f172a] border border-slate-800 text-slate-100 rounded-lg p-2.5 outline-none focus:border-indigo-500">
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="font-bold text-slate-400 uppercase tracking-wide">Bank Account</label>
+          <input type="text" id="staff-bank" placeholder="KBZ / CB / AYA Account" class="w-full bg-[#0f172a] border border-slate-800 text-slate-100 rounded-lg p-2.5 outline-none focus:border-indigo-500">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="flex flex-col gap-1">
+          <label class="font-bold text-slate-400 uppercase tracking-wide">Phone No</label>
+          <input type="text" id="staff-phone" placeholder="09xxxxxxxxx" class="w-full bg-[#0f172a] border border-slate-800 text-slate-100 rounded-lg p-2.5 outline-none focus:border-indigo-500">
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="font-bold text-slate-400 uppercase tracking-wide">Email</label>
+          <input type="email" id="staff-email" placeholder="staff@example.com" class="w-full bg-[#0f172a] border border-slate-800 text-slate-100 rounded-lg p-2.5 outline-none focus:border-indigo-500">
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="font-bold text-rose-400 uppercase tracking-wide">Resigned Date (အလုပ်မှ နှုတ်ထွက်သည့်ရက် - ရှိပါက)</label>
+        <input type="date" id="staff-resigned" onchange="calculateLiveStaffSalary()" class="w-full bg-[#0f172a] border border-slate-800 text-rose-300 rounded-lg p-2.5 outline-none focus:border-rose-500">
+      </div>
+
+      <div class="flex justify-end items-center gap-3 pt-4 border-t border-slate-800">
+        <button type="button" onclick="closeStaffModal()" class="px-4 py-2 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition">Cancel</button>
+        <button type="submit" class="px-5 py-2 rounded-lg text-xs font-black bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/10 transition-all">Save Staff Record</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 💡 Grade Matrix Modal removed from here — a single canonical copy now lives in index.html (#grade-modal) to avoid duplicate-ID conflicts. See openGradeModal()/saveGradeForm() in js/app.bundle.js. -->
+
+<!-- 💡 A4 DUAL-COPY PAYSLIP PRINT AREA -->
+<div id="payslip-print-area" class="bg-white text-black font-sans text-xs">
+  <!-- Copy 1: EMPLOYEE COPY -->
+  <div class="payslip-section">
+    <div class="space-y-3">
+      <div class="text-center font-black text-base tracking-widest border-b-2 border-black pb-1 uppercase">PAYSLIP (EMPLOYEE COPY)</div>
+      
+      <div class="grid grid-cols-2 gap-4 text-xs font-bold">
+        <div>
+          <p>Name : <span id="print-pay-desc-top" class="font-semibold px-2"></span></p>
+          <p class="mt-1">Category : <span id="print-pay-cat-top" class="font-semibold px-2 uppercase text-indigo-700"></span></p>
+        </div>
+        <div class="text-right">
+          <p>Date : <span id="print-pay-date-top" class="font-semibold"></span></p>
+          <p class="mt-1">Payment Month : <span id="print-pay-month-top" class="font-mono font-semibold"></span></p>
+        </div>
+      </div>
+
+      <div class="border border-black p-3 rounded my-2 bg-slate-50">
+        <div class="flex justify-between items-center text-sm font-extrabold">
+          <span>NET SALARY (လစာငွေ) :</span>
+          <span id="print-pay-net-top" class="border-b-2 border-double border-black px-2 text-base"></span>
+        </div>
+      </div>
+
+      <div id="print-pay-notes-top" class="border border-dashed border-slate-600 p-2 rounded text-[11px] space-y-1">
+        <p class="font-bold uppercase text-slate-800">NOTES / ACCRUED BALANCES:</p>
+        <div class="grid grid-cols-2 gap-2 font-semibold">
+          <p>Unpaid Bonus Balance : <span id="print-pay-bonus-top" class="font-bold"></span></p>
+          <p>Unpaid Fund Balance : <span id="print-pay-fund-top" class="font-bold"></span></p>
+        </div>
+        <p class="text-[9px] text-slate-600 italic mt-1">* Bonus & Fund တို့သည် HR Payroll Policy အတိုင်းဖြစ်ပါသည်။</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4 pt-4 pb-2">
+      <div class="text-center"><p class="border-t border-black w-36 mx-auto font-bold pt-1 text-[10px]">Paid By (ထုတ်ပေးသူ)</p></div>
+      <div class="text-center"><p class="border-t border-black w-36 mx-auto font-bold pt-1 text-[10px]">Received By (ထုတ်ယူသူ)</p></div>
+    </div>
+  </div>
+
+  <div class="payslip-divider border-t border-dashed border-slate-400 text-center select-none">
+    ✂ - - - - - - - - - - - - - - - - - Cut Here - - - - - - - - - - - - - - - - - ✂
+  </div>
+
+  <!-- Copy 2: OFFICE COPY -->
+  <div class="payslip-section">
+    <div class="space-y-3">
+      <div class="text-center font-black text-base tracking-widest border-b-2 border-black pb-1 uppercase">PAYSLIP (OFFICE COPY)</div>
+      
+      <div class="grid grid-cols-2 gap-4 text-xs font-bold">
+        <div>
+          <p>Name : <span id="print-pay-desc-bot" class="font-semibold px-2"></span></p>
+          <p class="mt-1">Category : <span id="print-pay-cat-bot" class="font-semibold px-2 uppercase text-indigo-700"></span></p>
+        </div>
+        <div class="text-right">
+          <p>Date : <span id="print-pay-date-bot" class="font-semibold"></span></p>
+          <p class="mt-1">Payment Month : <span id="print-pay-month-bot" class="font-mono font-semibold"></span></p>
+        </div>
+      </div>
+
+      <div class="border border-black p-3 rounded my-2 bg-slate-50">
+        <div class="flex justify-between items-center text-sm font-extrabold">
+          <span>NET SALARY (လစာငွေ) :</span>
+          <span id="print-pay-net-bot" class="border-b-2 border-double border-black px-2 text-base"></span>
+        </div>
+      </div>
+
+      <div id="print-pay-notes-bot" class="border border-dashed border-slate-600 p-2 rounded text-[11px] space-y-1">
+        <p class="font-bold uppercase text-slate-800">NOTES / ACCRUED BALANCES:</p>
+        <div class="grid grid-cols-2 gap-2 font-semibold">
+          <p>Unpaid Bonus Balance : <span id="print-pay-bonus-bot" class="font-bold"></span></p>
+          <p>Unpaid Fund Balance : <span id="print-pay-fund-bot" class="font-bold"></span></p>
+        </div>
+        <p class="text-[9px] text-slate-600 italic mt-1">* Bonus & Fund တို့သည် HR Payroll Policy အတိုင်းဖြစ်ပါသည်။</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4 pt-4 pb-2">
+      <div class="text-center"><p class="border-t border-black w-36 mx-auto font-bold pt-1 text-[10px]">Paid By (ထုတ်ပေးသူ)</p></div>
+      <div class="text-center"><p class="border-t border-black w-36 mx-auto font-bold pt-1 text-[10px]">Received By (ထုတ်ယူသူ)</p></div>
+    </div>
+  </div>
+</div>

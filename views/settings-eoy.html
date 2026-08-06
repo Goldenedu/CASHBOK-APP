@@ -1,0 +1,153 @@
+<!-- views/settings-eoy.html -->
+<!-- 💡 EOY DRIVE BACKUP & RESET CARD — injected into #eoy-drive-backup-section by js/settings-eoy.js -->
+<!-- (Replaces the old "ROW 2 - RIGHT: DRIVE BACKUP" card + #drive-reset-modal in views/settings.html) -->
+
+<div class="p-4 rounded-xl shadow-xl flex flex-col justify-between h-full space-y-2.5"
+  style="background: linear-gradient(135deg, #0c1322 0%, #1f132b 50%, #0c1322 100%); border: 1px solid rgba(168, 85, 247, 0.35);">
+  <div>
+    <div class="flex items-center gap-2.5 pb-2" style="border-bottom: 1px solid rgba(168, 85, 247, 0.2);">
+      <div class="p-2 rounded-lg shrink-0"
+        style="background-color: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.3); color: #c084fc;">
+        <i class="fa-solid fa-floppy-disk text-sm"></i>
+      </div>
+      <div>
+        <h3 class="text-[11px] font-black uppercase tracking-wider" style="color: #c084fc;">Drive Backup & Reset System
+        </h3>
+        <p class="text-[9.5px]" style="color: #94a3b8;">Google Drive Backup & Sheet Safe Clear</p>
+      </div>
+    </div>
+
+    <p class="text-[10px] leading-relaxed mt-2.5" style="color: #cbd5e1;">
+      Google Drive ထဲတွင် နှစ်အလိုက် ဖိုဒါ (<span class="text-purple-300 font-mono font-bold text-[9.5px]">FY 2026-2027
+        CASH BOOK DATA</span>) ဆောက်၍ ရက်စွဲပါ Sheet ဖိုင် ပွားယူ သိမ်းဆည်းပြီးမှသာ လိုအပ်သော Sheet များ၏ Row 6
+      အောက်ပိုင်း ဒေတာများကို ရှင်းလင်းပြီး Home Sheet ရှိ သက်ဆိုင်ရာ Summary Block ဒေတာများကို Opening Balance
+      အသစ်အဖြစ် Auto ကူးထည့်ပေးမည့် စနစ်ဖြစ်ပါသည် (Home Sheet ကို လုံးဝ မထိခိုက်ပါ)။
+    </p>
+  </div>
+
+  <button onclick="startEoyDriveBackupAndResetWorkflow()"
+    class="w-full py-2 text-white text-[11px] font-black rounded-lg transition-all flex items-center justify-center gap-2 shadow-md active:scale-95 mt-auto"
+    style="background-color: #7e22ce; border: 1px solid #a855f7;">
+    <i class="fa-solid fa-box-archive text-xs"></i> Google Drive Backup & Safe Data Reset
+  </button>
+</div>
+
+<!-- 💡 EOY DRIVE BACKUP & SAFE SHEET RESET SELECTION MODAL -->
+<div id="eoy-reset-modal"
+  class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+  <div
+    class="bg-[#0c1322] border border-purple-500/40 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-200">
+
+    <!-- Modal Header -->
+    <div class="px-5 py-3.5 border-b border-slate-800 flex justify-between items-center bg-[#0e172a] shrink-0">
+      <div class="flex items-center gap-2.5">
+        <i class="fa-solid fa-shield-halved text-purple-400 text-sm"></i>
+        <h3 class="text-xs font-black text-white uppercase tracking-wider">Select Sheets to Clear Data (Row 6+)</h3>
+      </div>
+      <button onclick="closeEoyResetModal()" class="text-slate-500 hover:text-white transition">
+        <i class="fa-solid fa-xmark text-sm"></i>
+      </button>
+    </div>
+
+    <!-- Modal Content -->
+    <div class="p-5 space-y-4 overflow-y-auto text-xs">
+
+      <!-- Backup Status Alert Box -->
+      <div id="eoy-drive-backup-status-box"
+        class="p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-emerald-300 space-y-1">
+        <div class="flex items-center gap-2 font-bold text-[11px]">
+          <i class="fa-solid fa-circle-check text-emerald-400"></i> Google Drive Backup Confirmed!
+        </div>
+        <p id="eoy-drive-backup-status-msg" class="text-[10px] text-emerald-200/80 leading-relaxed">
+          Google Drive တွင် Backup Copy ဖိုင် အောင်မြင်စွာ သိမ်းဆည်းပြီးပါပြီ။
+        </p>
+      </div>
+
+      <!-- Selection Instructions -->
+      <div class="space-y-1 text-slate-300">
+        <p class="font-extrabold text-white text-[11px]">ဒေတာ ရှင်းလင်းလိုသော Sheet များကို ရွေးချယ်ပါ (Row 6 မှ စ၍
+          ရှင်းပါမည်):</p>
+        <p class="text-[10px] text-slate-400 italic">* Row 1 မှ 5 အထိ Formula များနှင့် Headers များကို လုံးဝ (၁၀၀%)
+          မထိခိုက်ပါ။ Home Sheet ကိုလည်း လုံးဝ (၁၀၀%) မထိခိုက်ပါ — ရွေးချယ်ထားသော Sheet နှင့် သက်ဆိုင်သည့် Home Sheet
+          ရှိ Summary Block ဒေတာများကို ဖတ်ယူပြီး Opening Balance အသစ်အဖြစ် Row 6 သို့ Auto ကူးထည့်ပေးပါမည်။</p>
+      </div>
+
+      <!-- Sheet Checkboxes Section Grid -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+
+        <!-- Main Cash Book Group -->
+        <div class="p-3 rounded-xl bg-[#0e172a] border border-slate-800 space-y-2">
+          <div class="flex justify-between items-center border-b border-slate-800 pb-1.5">
+            <span class="font-black text-sky-400 text-[11px] uppercase tracking-wider flex items-center gap-1.5">
+              <i class="fa-solid fa-book text-xs"></i> Main Cash Book Sheets
+            </span>
+            <button type="button" onclick="toggleEoyGroupCheckboxes('main', true)"
+              class="text-[9px] text-sky-300 underline font-bold">Select All</button>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-semibold text-slate-200">
+            <label class="flex items-center gap-2 cursor-pointer hover:text-white"><input type="checkbox" value="Bank"
+                class="eoy-sheet-reset-cb cb-eoy-main accent-purple-500 rounded"> Bank <span
+                class="text-[9px] text-slate-500 font-normal">(← Home!O7:AD8)</span></label>
+            <label class="flex items-center gap-2 cursor-pointer hover:text-white"><input type="checkbox" value="Cash"
+                class="eoy-sheet-reset-cb cb-eoy-main accent-purple-500 rounded"> Cash <span
+                class="text-[9px] text-slate-500 font-normal">(← Home!O11:AD12)</span></label>
+            <label class="flex items-center gap-2 cursor-pointer hover:text-white"><input type="checkbox" value="Office"
+                class="eoy-sheet-reset-cb cb-eoy-main accent-purple-500 rounded"> Office <span
+                class="text-[9px] text-slate-500 font-normal">(← Home!O15:AG19)</span></label>
+            <label class="flex items-center gap-2 cursor-pointer hover:text-white"><input type="checkbox"
+                value="Kitchen" class="eoy-sheet-reset-cb cb-eoy-main accent-purple-500 rounded"> Kitchen <span
+                class="text-[9px] text-slate-500 font-normal">(← Home!O22:AD22)</span></label>
+            <label class="flex items-center gap-2 cursor-pointer hover:text-white"><input type="checkbox"
+                value="Payroll" class="eoy-sheet-reset-cb cb-eoy-main accent-purple-500 rounded"> Payroll <span
+                class="text-[9px] text-slate-500 font-normal">(← Home!O24:AF24)</span></label>
+            <label class="flex items-center gap-2 cursor-pointer hover:text-white"><input type="checkbox" value="Income"
+                class="eoy-sheet-reset-cb cb-eoy-main accent-purple-500 rounded"> Income</label>
+            <label class="flex items-center gap-2 cursor-pointer hover:text-white"><input type="checkbox"
+                value="Student" class="eoy-sheet-reset-cb cb-eoy-main accent-purple-500 rounded"> Student</label>
+          </div>
+        </div>
+
+        <!-- Cashier Cash Book Group -->
+        <div class="p-3 rounded-xl bg-[#0e172a] border border-slate-800 space-y-2">
+          <div class="flex justify-between items-center border-b border-slate-800 pb-1.5">
+            <span class="font-black text-amber-400 text-[11px] uppercase tracking-wider flex items-center gap-1.5">
+              <i class="fa-solid fa-cash-register text-xs"></i> Cashier Cash Book Sheets
+            </span>
+            <button type="button" onclick="toggleEoyGroupCheckboxes('cashier', true)"
+              class="text-[9px] text-amber-300 underline font-bold">Select All</button>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-semibold text-slate-200">
+            <label class="flex items-center gap-2 cursor-pointer hover:text-white"><input type="checkbox" value="CABank"
+                class="eoy-sheet-reset-cb cb-eoy-cashier accent-purple-500 rounded"> CABank <span
+                class="text-[9px] text-slate-500 font-normal">(← Home!O29:AE29)</span></label>
+            <label class="flex items-center gap-2 cursor-pointer hover:text-white"><input type="checkbox" value="CACash"
+                class="eoy-sheet-reset-cb cb-eoy-cashier accent-purple-500 rounded"> CACash <span
+                class="text-[9px] text-slate-500 font-normal">(← Home!O30:AE30)</span></label>
+            <label class="flex items-center gap-2 cursor-pointer hover:text-white"><input type="checkbox"
+                value="CAOffice" class="eoy-sheet-reset-cb cb-eoy-cashier accent-purple-500 rounded"> CAOffice <span
+                class="text-[9px] text-slate-500 font-normal">(← Home!O31:AE31)</span></label>
+            <label class="flex items-center gap-2 cursor-pointer hover:text-white"><input type="checkbox"
+                value="CAKitchen" class="eoy-sheet-reset-cb cb-eoy-cashier accent-purple-500 rounded"> CAKitchen <span
+                class="text-[9px] text-slate-500 font-normal">(← Home!O32:AE32)</span></label>
+            <label class="flex items-center gap-2 cursor-pointer hover:text-white"><input type="checkbox"
+                value="CAPayroll" class="eoy-sheet-reset-cb cb-eoy-cashier accent-purple-500 rounded"> CAPayroll <span
+                class="text-[9px] text-slate-500 font-normal">(← Home!O33:AE33)</span></label>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Modal Footer Actions -->
+    <div class="px-5 py-3 border-t border-slate-800 flex justify-between items-center bg-[#0e172a] shrink-0">
+      <button onclick="closeEoyResetModal()"
+        class="px-4 py-2 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition">Cancel</button>
+      <button onclick="confirmAndExecuteEoySheetReset()"
+        class="px-5 py-2 rounded-lg text-xs font-black bg-purple-700 hover:bg-purple-600 text-white shadow-lg shadow-purple-900/30 transition-all flex items-center gap-1.5">
+        <i class="fa-solid fa-trash-can text-xs"></i> Confirm Clear Selected Data
+      </button>
+    </div>
+
+  </div>
+</div>
