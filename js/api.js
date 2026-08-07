@@ -1,13 +1,13 @@
 /**
  * GOLDEN ERP SYSTEM - CENTRAL API BRIDGE & UTILITIES
  * File: js/api.js 
- * 💡 SECURED: SWR In-Memory Caching, Background Prefetching (with Cashier Sync) & Formal Toast Engine
+ * 💡 SECURED: D1 Database Compatible API Bridge & SWR In-Memory Caching Engine
  */
 
-// 💡 Dynamic API URL from config
+// 💡 Corrected Worker URL from Cloudflare Service Name (cashbook-app-api)
 const API_WORKER_URL = (typeof window !== 'undefined' && window.CONFIG?.API_URL) 
   ? window.CONFIG.API_URL 
-  : "https://cashbook-api.goldeneduprivateschool.workers.dev/";
+  : "https://cashbook-app-api.goldeneduprivateschool.workers.dev/";
 
 // 💡 Global AppState
 window.AppState = window.AppState || {
@@ -22,27 +22,21 @@ window.gDataCache = window.gDataCache || {};
 
 /**
  * 💡 Cache Helper Functions with localStorage Persistence
- * Critical data များကို localStorage တွင်လည်း သိမ်းဆည်းပြီး page refresh လုပ်လျှင် ပြန်ရအောင် လုပ်သည်
  */
 window.getApiCache = function(cacheKey) {
-  // First check in-memory cache
   if (window.gDataCache[cacheKey]) {
     return window.gDataCache[cacheKey];
   }
   
-  // Then check localStorage persistence
   try {
     const persistedCache = localStorage.getItem('api_cache_' + cacheKey);
     if (persistedCache) {
       const parsed = JSON.parse(persistedCache);
-      // Check if cache is still valid (24 hours TTL)
       const cacheAge = Date.now() - parsed.timestamp;
       if (cacheAge < 24 * 60 * 60 * 1000) {
-        // Restore to in-memory cache
         window.gDataCache[cacheKey] = parsed.data;
         return parsed.data;
       } else {
-        // Cache expired, remove from localStorage
         localStorage.removeItem('api_cache_' + cacheKey);
       }
     }
@@ -55,10 +49,7 @@ window.getApiCache = function(cacheKey) {
 
 window.setApiCache = function(cacheKey, data) {
   if (data && data.success) {
-    // Set in-memory cache
     window.gDataCache[cacheKey] = data;
-    
-    // Also persist to localStorage for critical data
     try {
       const cacheEntry = {
         timestamp: Date.now(),
@@ -73,8 +64,6 @@ window.setApiCache = function(cacheKey, data) {
 
 window.clearAllApiCache = function() {
   window.gDataCache = {};
-  
-  // Clear all persisted cache from localStorage
   try {
     const keys = Object.keys(localStorage);
     keys.forEach(key => {
@@ -93,14 +82,12 @@ window.invalidateApiCache = function(actionPrefix = '') {
     return;
   }
   
-  // Clear from in-memory cache
   Object.keys(window.gDataCache).forEach(key => {
     if (key.toLowerCase().includes(actionPrefix.toLowerCase())) {
       delete window.gDataCache[key];
     }
   });
   
-  // Also clear from localStorage persistence (selective invalidation)
   try {
     const keys = Object.keys(localStorage);
     keys.forEach(key => {
@@ -114,8 +101,7 @@ window.invalidateApiCache = function(actionPrefix = '') {
 };
 
 /**
- * 💡 Enhanced Error Logging System
- * Error များကို detailed ဖြင့် log လုပ်ထားပြီး localStorage တွင် သိမ်းဆည်းသည်
+ * 💡 Error Logging System
  */
 window.ErrorLogger = {
   maxLogs: 50,
@@ -131,7 +117,6 @@ window.ErrorLogger = {
       url: window.location.href
     };
     
-    // Get existing logs
     let logs = [];
     try {
       const storedLogs = localStorage.getItem('error_logs');
@@ -142,22 +127,17 @@ window.ErrorLogger = {
       console.warn('Failed to parse error logs:', e);
     }
     
-    // Add new error
     logs.unshift(errorEntry);
-    
-    // Keep only last maxLogs entries
     if (logs.length > this.maxLogs) {
       logs = logs.slice(0, this.maxLogs);
     }
     
-    // Save to localStorage
     try {
       localStorage.setItem('error_logs', JSON.stringify(logs));
     } catch (e) {
       console.warn('Failed to save error logs:', e);
     }
     
-    // Also log to console for debugging
     console.error(`[ErrorLogger] ${context}:`, error, additionalInfo);
   },
   
@@ -176,18 +156,12 @@ window.ErrorLogger = {
   }
 };
 
-/**
- * 💡 Storage ထဲမှ လတ်ဆတ်သော Token ကို ရယူပေးသည့် Helper
- */
 function getFreshAuthToken() {
   const token = localStorage.getItem('golden_auth_token') || (window.AppState ? window.AppState.authToken : null) || '';
   if (window.AppState) window.AppState.authToken = token;
   return token;
 }
 
-/**
- * 💡 Global Loading Spinner Indicator Helper
- */
 window.toggleLoading = function(show) {
   const overlay = document.getElementById('loading-overlay');
   if (overlay) {
@@ -197,7 +171,7 @@ window.toggleLoading = function(show) {
 };
 
 /**
- * 💡 Central API Fetch Engine with In-Memory SWR Caching
+ * 💡 Central D1-Compatible API Fetch Engine
  */
 window.callApi = async function(action, payload = {}, method = 'POST') {
   try {
@@ -208,12 +182,10 @@ window.callApi = async function(action, payload = {}, method = 'POST') {
     const isWriteAction = action.startsWith('save') || action.startsWith('update') || action.startsWith('delete') || action.startsWith('trigger') || action.startsWith('backup');
     const forceRefresh = payload.forceRefresh === true;
 
-    // Remove forceRefresh property from payload sent to server
     const { forceRefresh: _, ...serverPayload } = payload;
-
     const cacheKey = `${action}_${JSON.stringify(serverPayload)}`;
 
-    // 1. Check Cache for Read Actions (Instant 0ms Load)
+    // Check Cache for Read Actions
     if (isReadAction && !forceRefresh) {
       const cachedRes = window.getApiCache(cacheKey);
       if (cachedRes) {
@@ -252,7 +224,6 @@ window.callApi = async function(action, payload = {}, method = 'POST') {
 
     const response = await fetch(url, options);
 
-    // 💡 401 Unauthorized Handling
     if (response.status === 401) {
       console.warn(`[API 401] Unauthorized access for action: ${action}`);
 
@@ -279,27 +250,20 @@ window.callApi = async function(action, payload = {}, method = 'POST') {
     }
 
     if (!response.ok) {
-      // 💡 Try to read the JSON error body so the real server-side reason
-      // (e.g. Google Drive/Sheets API failure detail) isn't swallowed and
-      // shown only as a bare "HTTP Error: 500" in the console/toast.
       let serverMessage = '';
       try {
         const errData = await response.clone().json();
         serverMessage = errData && (errData.detail || errData.message) ? (errData.detail || errData.message) : '';
-      } catch (parseErr) {
-        // Response body wasn't JSON (or already consumed) — ignore and fall back.
-      }
+      } catch (parseErr) {}
       throw new Error(`HTTP Error: ${response.status}${serverMessage ? ` - ${serverMessage}` : ''}`);
     }
 
     const result = await response.json();
 
-    // 2. Cache successful Read Responses in Memory
     if (isReadAction && result && result.success) {
       window.setApiCache(cacheKey, result);
     }
 
-    // 3. Clear Cache on Write Actions so next read fetches fresh data from Google Sheet
     if (isWriteAction && result && result.success) {
       window.clearAllApiCache();
     }
@@ -307,7 +271,6 @@ window.callApi = async function(action, payload = {}, method = 'POST') {
     return result;
 
   } catch (err) {
-    // 💡 Enhanced error logging with detailed context
     if (window.ErrorLogger) {
       window.ErrorLogger.logError(`API_CALL_${action}`, err, {
         action: action,
@@ -327,12 +290,7 @@ window.callApi = async function(action, payload = {}, method = 'POST') {
   }
 };
 
-/**
- * 💡 Enterprise Background Prefetching Engine (0ms Instant Navigation)
- * Login ပြီးသည်နှင့် စာမျက်နှာ HTML Templates များနှင့် Modules အားလုံး၏ ဒေတာများကို နောက်ကွယ်မှ ကြိုတင်ဆွဲယူမည်
- */
 window.prefetchCoreModules = function() {
-  // 1. Prefetch View HTML Templates into window.viewCache
   window.viewCache = window.viewCache || {};
   const views = [
     'dashboard', 'bank-cash-kit', 'income', 'office', 'hr',
@@ -349,7 +307,6 @@ window.prefetchCoreModules = function() {
     }
   });
 
-  // 2. Prefetch API Datasets silently into window.gDataCache
   setTimeout(() => {
     window.callApi('getDashboardData', {}).catch(() => {});
     window.callApi('getBankCashData', { bookName: 'Bank Book', page: 1, limit: 30, searchVal: '' }).catch(() => {});
@@ -365,15 +322,10 @@ window.prefetchCoreModules = function() {
     window.callApi('getStaffData', { category: 'FullTime', page: 1, limit: 30, searchVal: '' }).catch(() => {});
     window.callApi('getUniformData', { page: 1, limit: 1000 }).catch(() => {});
     window.callApi('getPromotionData', {}).catch(() => {});
-    window.callApi('getFinancialReportData', {}).catch(() => {});
-    window.callApi('getFundReportData', {}).catch(() => {});
     window.callApi('getSettingsData', {}).catch(() => {});
   }, 100);
 };
 
-/**
- * 💡 Global Toast Stack Notification Engine (Formal Enterprise Corporate Tone)
- */
 window.showToast = function(type, message) {
   if (document.documentElement.classList.contains('not-authed') && type === 'ERROR') {
     return;
@@ -403,9 +355,6 @@ window.showToast = function(type, message) {
   }, 4000);
 };
 
-/**
- * 💡 Utility Functions
- */
 window.escapeHtml = function(str) {
   if (!str) return "";
   return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
