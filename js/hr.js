@@ -1,7 +1,7 @@
 /**
  * GOLDEN ERP SYSTEM - HR PAYROLL EXP BOOK CONTROLLER (D1 DATABASE EDITION)
- * File: js/hr.js 
- * 💡 Features: D1 Compatible Staff ID Lookup, Auto Credit/Bonus/Fund Auto-Fill & Payslip Print Engine
+ * File: js/hr.js
+ * 💡 Features: 0ms Instant Modal Opening, Fixed totalSalaryVal Reference & D1 Compatible Auto-Fill Engine
  */
 
 var gHrSubTab = 'payroll'; // 'payroll' | 'fulltime' | 'parttime'
@@ -329,19 +329,21 @@ async function onStaffIdChangePayroll() {
   const fallbackMY = `${months[now.getMonth()]}-${String(now.getFullYear()).slice(-2)}`;
   const myStr = !isNaN(dObj.getTime()) ? `${months[dObj.getMonth()]}-${String(dObj.getFullYear()).slice(-2)}` : fallbackMY;
 
-  // 💡 Calculate Values with D1 Field Name Compatibility (total_net_amt, total_salary, bonus, fund, unpaid_bonus, unpaid_fund)
+  // 💡 Calculate Values with D1 Field Name Compatibility
   let creditVal = 0;
   let bonusFieldVal = 0;
   let fundFieldVal = 0;
 
-  const netSalary = Number(matchedStaff.total_net_amt ?? matchedStaff.totalNetAmt ?? matchedStaff.total_salary ?? matchedStaff.totalSalary ?? 0);
+  // 🔧 FIXED: Declared totalSalaryVal properly to fix Uncaught ReferenceError
+  const totalSalaryVal = Number(matchedStaff.total_salary ?? matchedStaff.totalSalary ?? 0);
+  const netSalary = Number(matchedStaff.total_net_amt ?? matchedStaff.totalNetAmt ?? totalSalaryVal);
   const bonusAmt = Number(matchedStaff.bonus ?? 0);
   const fundAmt = Number(matchedStaff.fund ?? 0);
   const unpaidBonus = Number(matchedStaff.unpaid_bonus ?? matchedStaff.unpaidBonus ?? 0);
   const unpaidFund = Number(matchedStaff.unpaid_fund ?? matchedStaff.unpaidFund ?? 0);
 
   if (category === 'Full Time Salary' || category === 'Part Time Salary') {
-    creditVal = totalSalaryVal;
+    creditVal = totalSalaryVal; // ✅ Bound to TOTAL SALARY
     bonusFieldVal = bonusAmt;
     fundFieldVal = fundAmt;
   } else if (category === 'Full Time Bonus' || category === 'Part Time Bonus') {
@@ -367,9 +369,9 @@ async function onStaffIdChangePayroll() {
 }
 
 /**
- * 💡 Open Add Modal
+ * 💡 Open Add Modal (0ms Instant Opening)
  */
-async function openAddModalHrPayroll() {
+function openAddModalHrPayroll() {
   const form = document.getElementById('hr-payroll-form');
   if (form) form.reset();
 
@@ -388,10 +390,12 @@ async function openAddModalHrPayroll() {
   const title = document.getElementById('hr-payroll-form-title');
   if (title) title.textContent = 'Add HR Payroll Entry';
 
-  await preloadStaffCacheForPayroll();
-
+  // 💡 INSTANT OPEN: Show modal immediately first (0ms delay)
   const modal = document.getElementById('hr-payroll-modal');
   if (modal) modal.classList.remove('hidden');
+
+  // Preload staff cache in background non-blocking
+  preloadStaffCacheForPayroll();
 }
 
 function closeHrPayrollModal() {
@@ -410,7 +414,7 @@ async function saveHrPayrollForm(e) {
   const creditVal = parseFloat(document.getElementById('hr-pay-credit')?.value || 0);
 
   if (!staffIdVal) {
-    if (typeof showToast === 'function') showToast("ERROR", "ကျေးဇူးပြု၍ Staff ID ဖြည့်သွင်းပါ");
+    if (typeof showToast === 'function') showToast("ERROR", "ကျောင်းသား/ဝန်ထမ်း ID ဖြည့်သွင်းပါ");
     return;
   }
 
@@ -451,7 +455,7 @@ async function saveHrPayrollForm(e) {
 }
 
 /**
- * 💡 Edit Entry (Enhanced with D1 Property Compatibility)
+ * 💡 Edit Entry
  */
 function editHrPayrollEntry(uniqueId) {
   const row = gHrPayrollData.find(item => (item.uniqueid === uniqueId || item.uniqueId === uniqueId));
