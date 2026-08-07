@@ -341,7 +341,7 @@ async function onStaffIdChangePayroll() {
   const unpaidFund = Number(matchedStaff.unpaid_fund ?? matchedStaff.unpaidFund ?? 0);
 
   if (category === 'Full Time Salary' || category === 'Part Time Salary') {
-    creditVal = netSalary;
+    creditVal = totalSalaryVal;
     bonusFieldVal = bonusAmt;
     fundFieldVal = fundAmt;
   } else if (category === 'Full Time Bonus' || category === 'Part Time Bonus') {
