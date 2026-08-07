@@ -1,7 +1,7 @@
 /**
  * GOLDEN ERP SYSTEM - STUDENT LIST & DEMOGRAPHICS MODULE (D1 DATABASE COMPATIBLE)
  * File: js/student.js
- * 💡 Features: Gender Auto-Detect, 4-Digit FYID Padding (2627-STU-0001), Integer NO (1, 2, 3), Old Student Lookup & Class Promotion
+ * 💡 Features: FY-Scoped KPI Analytics, Gender Auto-Detect, 4-Digit FYID Padding (2627-STU-0001), Integer NO (1, 2, 3), Old Student Lookup & Class Promotion
  */
 
 window.StudentState = {
@@ -10,6 +10,7 @@ window.StudentState = {
   totalRows: 0,
   activeData: [],
   searchVal: '',
+  fyFilter: '2026-2027', // Default Active FY
   stats: { totalActive: 0, totalInactive: 0, total: 0 }
 };
 
@@ -36,15 +37,12 @@ const CLASS_PROMOTION_MAP = {
 
 /**
  * 💡 Gender Auto-Detect Logic based on Student Name Prefixes
- * - မောင်, ကို, ဦး, Mg, Ko, U -> Male
- * - မေ, ဒေါ်, Daw, May -> Female
- * - မ, Ma (မောင် မဟုတ်ပါက) -> Female
  */
 function autoDetectGender(nameStr) {
   if (!nameStr) return 'Male';
   const clean = String(nameStr).trim();
 
-  // Male Prefix Checks (Check "မောင်" before "မ")
+  // Male Prefix Checks
   if (clean.startsWith('မောင်') || clean.startsWith('ကို') || clean.startsWith('ဦး') ||
       /^(Mg|Ko|U)\b/i.test(clean) || /^(မောင်|ကို|ဦး)/.test(clean)) {
     return 'Male';
@@ -78,21 +76,35 @@ function getFyShortCode(fyStr) {
   return '2627';
 }
 
-function filterStudentData(list = [], searchVal = '') {
-  if (!searchVal || !searchVal.trim()) return list;
-  const q = searchVal.trim().toLowerCase();
+/**
+ * 💡 Multi-Criteria Filter: FY Filter + Search Query
+ */
+function filterStudentData(list = [], searchVal = '', fyFilter = '') {
+  let filtered = list;
 
-  return list.filter(row => {
-    const nameMatch = String(row.name || '').toLowerCase().includes(q) || String(row.fyid_name || row.fyidName || '').toLowerCase().includes(q);
-    const fyidMatch = String(row.fyid || '').toLowerCase().includes(q);
-    const idMatch = String(row.student_id || row.studentId || row.id || '').toLowerCase().includes(q);
+  // 1. Filter by FY
+  if (fyFilter && fyFilter.trim()) {
+    const fyQ = fyFilter.trim().toLowerCase();
+    filtered = filtered.filter(row => String(row.fy || '').trim().toLowerCase() === fyQ);
+  }
 
-    return nameMatch || fyidMatch || idMatch;
-  });
+  // 2. Filter by Search Query
+  if (searchVal && searchVal.trim()) {
+    const q = searchVal.trim().toLowerCase();
+    filtered = filtered.filter(row => {
+      const nameMatch = String(row.name || '').toLowerCase().includes(q) || String(row.fyid_name || row.fyidName || '').toLowerCase().includes(q);
+      const fyidMatch = String(row.fyid || '').toLowerCase().includes(q);
+      const idMatch = String(row.student_id || row.studentId || row.id || '').toLowerCase().includes(q);
+
+      return nameMatch || fyidMatch || idMatch;
+    });
+  }
+
+  return filtered;
 }
 
 /**
- * 💡 Load Student List Data & Calculate Active FY KPI Stats
+ * 💡 Load Student List Data & Calculate FY-Scoped KPI Stats
  */
 async function loadStudentData(isSilent = false) {
   if (!isSilent && typeof toggleLoading === 'function') toggleLoading(true);
@@ -112,26 +124,7 @@ async function loadStudentData(isSilent = false) {
       state.activeData = response.data;
       state.totalRows = response.totalRows || response.data.length || 0;
 
-      // 💡 Calculate Active FY KPIs (Active, Inactive, Total)
-      let actCount = 0;
-      let inactCount = 0;
-
-      response.data.forEach(r => {
-        const transDate = r.transfer_date || r.transferDate || "";
-        const stat = (r.status || "").toLowerCase();
-        if (transDate || stat === "inactive") {
-          inactCount++;
-        } else {
-          actCount++;
-        }
-      });
-
-      state.stats = {
-        totalActive: actCount,
-        totalInactive: inactCount,
-        total: response.data.length
-      };
-
+      populateMainFYFilterStudent();
       updateStatsStudent();
       renderStudentTable();
       updatePaginationStudent();
@@ -142,24 +135,81 @@ async function loadStudentData(isSilent = false) {
   }
 }
 
-function updateStatsStudent() {
-  const stats = window.StudentState.stats;
+/**
+ * 💡 Populate FY Filter Options on Main Directory Bar
+ */
+function populateMainFYFilterStudent() {
+  const select = document.getElementById('student-filter-fy');
+  if (!select) return;
 
-  const actEl = document.getElementById('stu-total-active');
-  if (actEl) actEl.innerText = Number(stats.totalActive || 0).toLocaleString('en-US');
+  const rawData = window.StudentState.activeData || [];
+  const fySet = new Set();
+  fySet.add('2026-2027');
 
-  const inactEl = document.getElementById('stu-total-inactive');
-  if (inactEl) inactEl.innerText = Number(stats.totalInactive || 0).toLocaleString('en-US');
+  rawData.forEach(r => {
+    if (r.fy) fySet.add(r.fy.trim());
+  });
 
-  const totEl = document.getElementById('stu-total-students');
-  if (totEl) totEl.innerText = Number(stats.total || 0).toLocaleString('en-US');
+  const currentSelected = select.value || window.StudentState.fyFilter || '2026-2027';
+  let html = '<option value="">-- All FY --</option>';
+  fySet.forEach(fy => {
+    html += `<option value="${fy}" ${fy === currentSelected ? 'selected' : ''}>${fy}</option>`;
+  });
 
-  const countEl = document.getElementById('stu-entries-count');
-  if (countEl) countEl.innerText = window.StudentState.totalRows.toLocaleString('en-US');
+  select.innerHTML = html;
+  window.StudentState.fyFilter = select.value;
+}
+
+function onFyFilterChangeStudent() {
+  const select = document.getElementById('student-filter-fy');
+  if (select) {
+    window.StudentState.fyFilter = select.value;
+    updateStatsStudent();
+    renderStudentTable();
+  }
 }
 
 /**
- * 💡 Render Student Table Grid Rows with Integer NO & Auto Gender Display
+ * 💡 Update Stats Cards Strictly Filtered by Active FY (Ignores DATE)
+ */
+function updateStatsStudent() {
+  const rawData = window.StudentState.activeData || [];
+  const fyFilter = document.getElementById('student-filter-fy')?.value || window.StudentState.fyFilter || '2026-2027';
+
+  // 💡 Filter strictly by Fiscal Year (FY)
+  let fyList = rawData;
+  if (fyFilter && fyFilter.trim()) {
+    fyList = rawData.filter(r => String(r.fy || '').trim().toLowerCase() === fyFilter.trim().toLowerCase());
+  }
+
+  let actCount = 0;
+  let inactCount = 0;
+
+  fyList.forEach(r => {
+    const transDate = r.transfer_date || r.transferDate || "";
+    const stat = (r.status || "").toLowerCase();
+    if (transDate || stat === "inactive") {
+      inactCount++;
+    } else {
+      actCount++;
+    }
+  });
+
+  const actEl = document.getElementById('stu-total-active');
+  if (actEl) actEl.innerText = Number(actCount).toLocaleString('en-US');
+
+  const inactEl = document.getElementById('stu-total-inactive');
+  if (inactEl) inactEl.innerText = Number(inactCount).toLocaleString('en-US');
+
+  const totEl = document.getElementById('stu-total-students');
+  if (totEl) totEl.innerText = Number(actCount + inactCount).toLocaleString('en-US');
+
+  const countEl = document.getElementById('stu-entries-count');
+  if (countEl) countEl.innerText = Number(fyList.length).toLocaleString('en-US');
+}
+
+/**
+ * 💡 Render Student Table Grid Rows with FY Filtering & Integer NO
  * Column Order: NO | STU STATUS | DATE | FY | FYID | NAME | CLASS | CATEGORY | PROMO | STATUS | GENDER | TRANSFER DATE | PARENTS NAME | PHONE NO | ADDRESS | ACTION
  */
 function renderStudentTable() {
@@ -169,8 +219,9 @@ function renderStudentTable() {
   const rawData = window.StudentState.activeData || [];
   const searchInput = document.getElementById('student-search');
   const searchVal = searchInput ? searchInput.value.trim() : (window.StudentState.searchVal || '');
+  const fyFilter = document.getElementById('student-filter-fy')?.value || window.StudentState.fyFilter || '';
 
-  const filteredData = filterStudentData(rawData, searchVal);
+  const filteredData = filterStudentData(rawData, searchVal, fyFilter);
 
   if (!filteredData || filteredData.length === 0) {
     tableBody.innerHTML = `<tr><td colspan="16" class="text-center py-8 text-slate-500 font-bold">ရှာဖွေမှုနှင့် ကိုက်ညီသော ကျောင်းသား စာရင်း မရှိပါ။</td></tr>`;
@@ -193,7 +244,6 @@ function renderStudentTable() {
       if (parts.length === 3) displayTransDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
     }
 
-    // 💡 Auto calculate Active/Inactive Status based on Transfer Date
     const isTransferred = !!transDateVal;
     const finalStatus = isTransferred ? "Inactive" : (row.status || "Active");
     const isInactive = finalStatus.toLowerCase() === "inactive";
@@ -203,10 +253,9 @@ function renderStudentTable() {
     const parentsNameVal = row.parents_name || row.parentsName || "-";
     const phoneNoVal = row.phone_no || row.phoneNo || "-";
 
-    // 💡 Gender Auto Detection from Student Name
     const detectedGender = row.gender || autoDetectGender(row.name);
 
-    // 💡 Integer NO (Ensure integer format 1, 2, 3 - No decimals!)
+    // 💡 Integer NO (Ensure clean integer display 1, 2, 3)
     const rawNo = row.no !== undefined && row.no !== null && row.no !== "" ? row.no : (idx + 1);
     const displayNo = parseInt(rawNo, 10) || (idx + 1);
 
@@ -296,9 +345,6 @@ function populateDynamicFYDropdownStudent(selectId) {
   `;
 }
 
-/**
- * 💡 Toggle Student Status Event (New Student vs Old Student)
- */
 function onStudentStatusChange() {
   const statusEl = document.getElementById('stu-stustatus');
   const idInput = document.getElementById('stu-id-input');
@@ -319,9 +365,6 @@ function onStudentStatusChange() {
   }
 }
 
-/**
- * 💡 Old Student Lookup Logic with Auto-Class Promotion & History Pre-fill
- */
 function onOldStudentIdLookup() {
   clearTimeout(lookupTimeoutStudent);
   lookupTimeoutStudent = setTimeout(async () => {
@@ -332,13 +375,11 @@ function onOldStudentIdLookup() {
     const lookupId = idInput.value.trim();
     if (!lookupId) return;
 
-    // 1. Search locally in activeData first
     let match = (window.StudentState.activeData || []).find(r => 
       String(r.student_id || r.studentId || r.id || '') === lookupId ||
       String(r.fyid || '').toLowerCase().endsWith(`-stu-${lookupId.padStart(4, '0')}`)
     );
 
-    // 2. If not found locally, query Server API
     if (!match) {
       try {
         const res = await callApi('lookupStudentById', { studentId: lookupId }, 'GET');
@@ -350,12 +391,10 @@ function onOldStudentIdLookup() {
       }
     }
 
-    // 3. Auto-populate Form & Promote Class
     if (match) {
       const nameEl = document.getElementById('stu-name');
       if (nameEl) nameEl.value = match.name || "";
 
-      // 💡 Auto Class Promotion Logic
       const oldClass = match.class || "Pre School";
       const promotedClass = CLASS_PROMOTION_MAP[oldClass] || oldClass;
       const classEl = document.getElementById('stu-class');
@@ -386,9 +425,6 @@ function onOldStudentIdLookup() {
   }, 400);
 }
 
-/**
- * 💡 Save / Update Student Profile with 4-Digit FYID Padding & Gender Auto-Detect
- */
 async function saveStudentForm(e) {
   if (e && e.preventDefault) e.preventDefault();
 
@@ -396,16 +432,12 @@ async function saveStudentForm(e) {
   const isAdd = (!uniqueId);
 
   const transferDateVal = document.getElementById('stu-transferdate')?.value || "";
-  // 💡 Auto calculate status: Has Transfer Date = Inactive, else Active
   const calculatedStatus = transferDateVal ? "Inactive" : "Active";
 
   const fyVal = document.getElementById('stu-fy')?.value || "2026-2027";
   const nameVal = document.getElementById('stu-name')?.value || "";
 
-  // 💡 Auto Detect Gender from Student Name
   const detectedGender = autoDetectGender(nameVal);
-
-  // 💡 Compute 4-Digit FY Short Code (e.g. "2026-2027" -> "2627")
   const fyShort = getFyShortCode(fyVal);
   const inputStudentId = document.getElementById('stu-id-input')?.value.trim();
   const hiddenStudentId = document.getElementById('stu-id')?.value.trim();
@@ -599,4 +631,4 @@ window.exportToCSVStudent = exportToCSVStudent;
 window.onSearchInputStudent = onSearchInputStudent;
 window.changePageStudent = changePageStudent;
 window.onStudentStatusChange = onStudentStatusChange;
-window.onOldStudentIdLookup = onOldStudentIdLookup;
+window.onOldStudentIdLookup = onOldStudentIdLook
