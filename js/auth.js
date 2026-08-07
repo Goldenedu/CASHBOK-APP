@@ -1,7 +1,7 @@
 /**
  * GOLDEN ERP SYSTEM - AUTHENTICATION & ROLE ENGINE
  * File: js/auth.js
- * 💡 SECURED (Phase 2): JWT Expiration Verification, Salted Password Hashing & Bulletproof RBAC
+ * 💡 SECURED (D1 Database Edition): JWT Verification & Bulletproof RBAC Matrix
  */
 
 /**
@@ -11,7 +11,7 @@
  */
 function hasPermission(permissionName) {
   const rawRole = (window.AppState?.currentUserRole || localStorage.getItem('golden_user_role') || 'Viewer').trim();
-  const role = rawRole.replace(/\s+/g, ' '); // Normalize internal spaces
+  const role = rawRole.replace(/\s+/g, ' ');
 
   const matrix = {
     'Owner': { can_view: true, can_add: true, can_edit: true, can_delete: true, can_manage_grades: true, can_backup: true },
@@ -19,8 +19,6 @@ function hasPermission(permissionName) {
     'Finance': { can_view: true, can_add: true, can_edit: true, can_delete: true, can_manage_grades: false, can_backup: true },
     'Accountant': { can_view: true, can_add: true, can_edit: true, can_delete: true, can_manage_grades: false, can_backup: true },
     'HR Staff': { can_view: true, can_add: true, can_edit: true, can_delete: true, can_manage_grades: true, can_backup: false },
-    'HRStaff': { can_view: true, can_add: true, can_edit: true, can_delete: true, can_manage_grades: true, can_backup: false },
-    // 💡 CASHIER ROLE: Granted permission to manage & delete Cashier entries
     'Cashier': { can_view: true, can_add: true, can_edit: true, can_delete: true, can_manage_grades: false, can_backup: false },
     'Staff': { can_view: true, can_add: true, can_edit: false, can_delete: false, can_manage_grades: false, can_backup: false },
     'Viewer': { can_view: true, can_add: false, can_edit: false, can_delete: false, can_manage_grades: false, can_backup: false }
@@ -31,20 +29,6 @@ function hasPermission(permissionName) {
 }
 
 /**
- * 💡 Client-Side Salted Password Hashing using Web Crypto API (SHA-256)
- * Security: Password ကို Application Salt ဖြင့် ပေါင်းစပ်ကာ Hash ပြုလုပ်၍ ပို့ဆောင်သည်
- */
-async function hashPassword(password) {
-  const appSalt = "GOLDEN_ERP_SECURE_SALT_2026";
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password + appSalt);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  return hashHex;
-}
-
-/**
  * 💡 Verify JWT Token or Local Session Expiration
  * @param {string} token 
  * @returns {boolean} True if expired, false if valid
@@ -52,7 +36,6 @@ async function hashPassword(password) {
 function isTokenExpired(token) {
   if (!token) return true;
 
-  // 1. JWT Payload `.exp` Timestamp Verification
   try {
     const parts = token.split('.');
     if (parts.length === 3) {
@@ -69,7 +52,6 @@ function isTokenExpired(token) {
     console.warn("[Auth] JWT payload exp parse fallback:", err.message);
   }
 
-  // 2. Fallback Verification via Local 8-Hour Session Timestamp
   const expiresAt = localStorage.getItem('golden_token_expires_at');
   if (expiresAt) {
     return Date.now() > Number(expiresAt);
@@ -103,20 +85,14 @@ function validateLoginInput(username, password) {
 
   if (!username || username.trim().length === 0) {
     errors.push("အသုံးပြုသူအမည် ဖြည့်သွင်းပါ");
-  } else if (username.length < 3) {
-    errors.push("အသုံးပြုသူအမည် အနည်းဆုံး ၃ လုံး ရှိရပါမည်");
-  } else if (username.length > 50) {
-    errors.push("အသုံးပြုသူအမည် အများဆုံး ၅၀ လုံး ဖြစ်နိုင်ပါသည်");
-  } else if (!/^[a-zA-Z0-9\s]+$/.test(username)) {
-    errors.push("အသုံးပြုသူအမည်တွင် စာလုံးနှင့် ကိန်းဂဏန်းသာ ပါဝင်နိုင်ပါသည်");
+  } else if (username.length < 2) {
+    errors.push("အသုံးပြုသူအမည် အနည်းဆုံး ၂ လုံး ရှိရပါမည်");
   }
 
   if (!password || password.trim().length === 0) {
     errors.push("လျှို့ဝှက်နံပါတ် ဖြည့်သွင်းပါ");
   } else if (password.length < 4) {
     errors.push("လျှို့ဝှက်နံပါတ် အနည်းဆုံး ၄ လုံး ရှိရပါမည်");
-  } else if (password.length > 100) {
-    errors.push("လျှို့ဝှက်နံပါတ် အများဆုံး ၁၀၀ လုံး ဖြစ်နိုင်ပါသည်");
   }
 
   return {
@@ -126,7 +102,7 @@ function validateLoginInput(username, password) {
 }
 
 /**
- * 💡 Handle Login Form Submission
+ * 💡 Handle Login Form Submission (D1 Database Compatible)
  */
 async function handleLoginSubmit(e) {
   if (e && e.preventDefault) e.preventDefault();
@@ -150,27 +126,30 @@ async function handleLoginSubmit(e) {
   }
 
   if (errorBox) errorBox.classList.add('hidden');
-  if (typeof window.showLoading === 'function') window.showLoading(true);
+  if (typeof window.toggleLoading === 'function') window.toggleLoading(true);
 
   try {
-    const hashedPassword = await hashPassword(password);
-    const response = await callApi('checkLogin', { username, password: hashedPassword });
-    if (typeof window.hideLoading === 'function') window.hideLoading();
+    // 💡 Direct D1 User Check via Worker API (No client-side hash mismatch)
+    const response = await callApi('checkLogin', { username, password });
+    if (typeof window.toggleLoading === 'function') window.toggleLoading(false);
 
     if (response && response.success) {
-      window.AppState = window.AppState || {};
-      window.AppState.currentUser = response.username;
-      window.AppState.currentUserRole = response.role;
-      window.AppState.authToken = response.token;
+      const resUser = response.user ? response.user.username : (response.username || username);
+      const resRole = response.user ? response.user.role : (response.role || 'Admin');
+      const resToken = response.token;
 
-      // 💡 Set Default 8-Hour Session TTL (8 * 60 * 60 * 1000 ms)
+      window.AppState = window.AppState || {};
+      window.AppState.currentUser = resUser;
+      window.AppState.currentUserRole = resRole;
+      window.AppState.authToken = resToken;
+
       const defaultTtlMs = 8 * 60 * 60 * 1000;
       const expiresAt = Date.now() + (response.expiresInMs || defaultTtlMs);
 
-      const userObj = JSON.stringify({ username: response.username, role: response.role });
-      localStorage.setItem('golden_user_name', response.username);
-      localStorage.setItem('golden_user_role', response.role);
-      localStorage.setItem('golden_auth_token', response.token);
+      const userObj = JSON.stringify({ username: resUser, role: resRole });
+      localStorage.setItem('golden_user_name', resUser);
+      localStorage.setItem('golden_user_role', resRole);
+      localStorage.setItem('golden_auth_token', resToken);
       localStorage.setItem('golden_user', userObj);
       localStorage.setItem('golden_token_expires_at', String(expiresAt));
 
@@ -178,10 +157,13 @@ async function handleLoginSubmit(e) {
       applyRoleRestrictions();
 
       if (typeof switchTab === 'function') {
-        const initialTab = (response.role === 'Cashier' || response.role === 'Main Cashier') ? 'cashier' : 'dashboard';
+        const initialTab = (resRole === 'Cashier' || resRole === 'Main Cashier') ? 'cashier' : 'dashboard';
         switchTab(initialTab);
       }
-      showToast("SUCCESS", "လော့ဂ်အင် ဝင်ရောက်မှု အောင်မြင်ပါသည်။");
+
+      if (typeof showToast === 'function') {
+        showToast("SUCCESS", `မင်္ဂလာပါ ${resUser} (${resRole})၊ လော့ဂ်အင် ဝင်ရောက်မှု အောင်မြင်ပါသည်။`);
+      }
     } else {
       if (errorBox) {
         errorBox.innerText = (response ? response.message : "") || "အသုံးပြုသူအမည် သို့မဟုတ် လျှို့ဝှက်နံပါတ် မှားယွင်းနေပါသည်။";
@@ -189,7 +171,7 @@ async function handleLoginSubmit(e) {
       }
     }
   } catch (err) {
-    if (typeof window.hideLoading === 'function') window.hideLoading();
+    if (typeof window.toggleLoading === 'function') window.toggleLoading(false);
     if (errorBox) {
       errorBox.innerText = "ဆာဗာ ချိတ်ဆက်မှု အမှား ဖြစ်ပေါ်ခဲ့သည်: " + err.message;
       errorBox.classList.remove('hidden');
@@ -279,8 +261,8 @@ function handleLogout() {
   if (confirm("စနစ်မှ ထွက်ခွာလိုပါသလား။")) {
     clearAuthStorage();
 
-    if (window.invalidateCache) {
-      window.invalidateCache();
+    if (window.clearAllApiCache) {
+      window.clearAllApiCache();
     }
 
     showLogin();
@@ -301,7 +283,6 @@ function checkExistingSession() {
   const savedToken = localStorage.getItem('golden_auth_token');
 
   if (savedUser && savedRole && savedToken) {
-    // 💡 Security: Check if token/session has expired
     if (isTokenExpired(savedToken)) {
       console.warn("[Auth] Session expired. Automatically logging out.");
       clearAuthStorage();
