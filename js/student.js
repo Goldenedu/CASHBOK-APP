@@ -1,7 +1,7 @@
 /**
  * GOLDEN ERP SYSTEM - STUDENT LIST & DEMOGRAPHICS MODULE (D1 DATABASE COMPATIBLE)
  * File: js/student.js
- * 💡 Features: FY-Scoped KPI Analytics, Synchronized Pagination, FYID Sanitizer (2627-STU-0002), Integer NO, Gender Auto-Detect & Old Student Lookup
+ * 💡 Features: All-FY Table List Rendering, Active FY KPI Cards Analytics, 4-Digit FYID Padding, Integer NO, Gender Auto-Detect & Old Student Lookup
  */
 
 window.StudentState = {
@@ -10,7 +10,7 @@ window.StudentState = {
   totalRows: 0,
   activeData: [],
   searchVal: '',
-  fyFilter: '2026-2027', // Default Active FY
+  fyFilter: '', // 💡 Default "" = All FY for Table List
   stats: { totalActive: 0, totalInactive: 0, total: 0 }
 };
 
@@ -82,7 +82,7 @@ function getFyShortCode(fyStr) {
 function filterStudentData(list = [], searchVal = '', fyFilter = '') {
   let filtered = list;
 
-  // 1. Filter by FY
+  // 1. Filter by FY if specifically selected
   if (fyFilter && fyFilter.trim()) {
     const fyQ = fyFilter.trim().toLowerCase();
     filtered = filtered.filter(row => String(row.fy || '').trim().toLowerCase() === fyQ);
@@ -104,7 +104,7 @@ function filterStudentData(list = [], searchVal = '', fyFilter = '') {
 }
 
 /**
- * 💡 Load Student List Data & Calculate FY-Scoped KPI Stats
+ * 💡 Load Student List Data
  */
 async function loadStudentData(isSilent = false) {
   if (!isSilent && typeof toggleLoading === 'function') toggleLoading(true);
@@ -135,7 +135,7 @@ async function loadStudentData(isSilent = false) {
 }
 
 /**
- * 💡 Populate FY Filter Options on Main Directory Bar
+ * 💡 Populate FY Filter Options on Main Directory Bar (Default = All FY)
  */
 function populateMainFYFilterStudent() {
   const select = document.getElementById('student-filter-fy');
@@ -149,8 +149,8 @@ function populateMainFYFilterStudent() {
     if (r.fy) fySet.add(r.fy.trim());
   });
 
-  const currentSelected = select.value || window.StudentState.fyFilter || '2026-2027';
-  let html = '<option value="">-- All FY --</option>';
+  const currentSelected = select.value !== undefined ? select.value : (window.StudentState.fyFilter || '');
+  let html = '<option value="" selected>-- All FY (စာရင်းအားလုံး) --</option>';
   fySet.forEach(fy => {
     html += `<option value="${fy}" ${fy === currentSelected ? 'selected' : ''}>${fy}</option>`;
   });
@@ -169,15 +169,18 @@ function onFyFilterChangeStudent() {
 }
 
 /**
- * 💡 Update Stats Cards Strictly Filtered by Active FY (Ignores DATE)
+ * 💡 Update Stats Cards Strictly for Active FY 2026-2027 (Or Selected FY)
  */
 function updateStatsStudent() {
   const rawData = window.StudentState.activeData || [];
-  const fyFilter = document.getElementById('student-filter-fy')?.value || window.StudentState.fyFilter || '2026-2027';
+  const selectedFy = document.getElementById('student-filter-fy')?.value;
+
+  // 💡 Default KPI Cards Scope = Active FY "2026-2027" unless specific FY selected
+  const targetFyForKpi = selectedFy || '2026-2027';
 
   let fyList = rawData;
-  if (fyFilter && fyFilter.trim()) {
-    fyList = rawData.filter(r => String(r.fy || '').trim().toLowerCase() === fyFilter.trim().toLowerCase());
+  if (targetFyForKpi && targetFyForKpi.trim()) {
+    fyList = rawData.filter(r => String(r.fy || '').trim().toLowerCase() === targetFyForKpi.trim().toLowerCase());
   }
 
   let actCount = 0;
@@ -207,7 +210,7 @@ function updateStatsStudent() {
 }
 
 /**
- * 💡 Render Student Table Grid Rows with FY Filtering, Synchronized Pagination & FYID Sanitizer
+ * 💡 Render Student Table Grid Rows (All FY Rows Included by Default)
  */
 function renderStudentTable() {
   const tableBody = document.getElementById('student-table-body');
