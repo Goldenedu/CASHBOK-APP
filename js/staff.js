@@ -1,8 +1,7 @@
 /**
- * GOLDEN ERP SYSTEM - STAFF MODULE
+ * GOLDEN ERP SYSTEM - STAFF MODULE (D1 DATABASE COMPATIBLE)
  * File: js/staff.js
- * 💡 Staff Master Directory with Safe Google Sheet Grade Matrix Engine (H1:U2 - 14 Columns)
- * 🛠️ FIXED: Added missing Grade L to openGradeModal & saveGradeForm (14 values payload).
+ * 💡 Features: Live Cloudflare D1 Salary Grade Matrix Sync, Auto Basic Amt Fill & Live Net Salary Calculator
  */
 
 var gStaffCategory = 'Full Time'; // 'Full Time' or 'Part Time'
@@ -11,32 +10,45 @@ var gStaffLimit = 30;
 var gStaffSearch = '';
 var gStaffData = [];
 
-// 💡 Google Sheet (FullTime!H1:U2) မှ ဖတ်ယူမည့် Dynamic Payroll Settings Cache
+// 💡 D1 Database (salary_grade_matrix) မှ ဖတ်ယူမည့် Dynamic Payroll Settings Cache
 var gPayrollSettings = {
   grades: {},
   bonus: 0,
-  fundRate: 0
+  fundRate: 0.05
 };
 
 /**
- * 💡 Fetch Payroll Settings Directly from Google Sheet (FullTime!H1:U2)
- * 🛡️ FIX: Always forceRefresh so this never serves a stale/incorrect 24h client cache
- *     entry (e.g. an old response captured before the sheet had real values, or before
- *     a past server-side range bug was fixed). Grade Matrix numbers must always be live.
+ * 💡 Fetch Payroll Settings Directly from Cloudflare D1 Database
  */
 async function fetchPayrollSettings() {
   try {
-    const res = await callApi('getPayrollSettings', { forceRefresh: true });
-    const pData = (res && res.data) ? res.data : (res && res.grades ? res : null);
-    if (pData) {
+    const res = await callApi('getPayrollSettings', { forceRefresh: true }, 'GET');
+    const d = (res && res.data) ? res.data : null;
+    if (d) {
+      // D1 Database Field Names: grade_a, grade_b ... bonus_rate, fund_rate
+      const gradesMap = {
+        'GRADE A': Number(d.grade_a ?? d.gradeA ?? 0),
+        'GRADE B': Number(d.grade_b ?? d.gradeB ?? 0),
+        'GRADE C': Number(d.grade_c ?? d.gradeC ?? 0),
+        'GRADE D': Number(d.grade_d ?? d.gradeD ?? 0),
+        'GRADE E': Number(d.grade_e ?? d.gradeE ?? 0),
+        'GRADE F': Number(d.grade_f ?? d.gradeF ?? 0),
+        'GRADE G': Number(d.grade_g ?? d.gradeG ?? 0),
+        'GRADE H': Number(d.grade_h ?? d.gradeH ?? 0),
+        'GRADE I': Number(d.grade_i ?? d.gradeI ?? 0),
+        'GRADE J': Number(d.grade_j ?? d.gradeJ ?? 0),
+        'GRADE K': Number(d.grade_k ?? d.gradeK ?? 0),
+        'GRADE L': Number(d.grade_l ?? d.gradeL ?? 0)
+      };
+
       gPayrollSettings = {
-        grades: pData.grades || {},
-        bonus: pData.bonus || 0,
-        fundRate: pData.fundRate || 0
+        grades: gradesMap,
+        bonus: Number(d.bonus_rate ?? d.bonusRate ?? 0),
+        fundRate: Number(d.fund_rate ?? d.fundRate ?? 0.05)
       };
     }
   } catch (err) {
-    console.warn("Could not load payroll settings from Sheet API:", err);
+    console.warn("Could not load payroll settings from D1 API:", err);
   }
   return gPayrollSettings;
 }
@@ -49,8 +61,8 @@ function filterStaffData(list = [], searchVal = '') {
   const q = searchVal.trim().toLowerCase();
 
   return list.filter(row => {
-    const name = String(row.staffIdName || row.name || '').toLowerCase();
-    const staffId = String(row.id || row.fid || row.pid || '').toLowerCase();
+    const name = String(row.staff_idname || row.staffIdName || row.name || '').toLowerCase();
+    const staffId = String(row.staff_id || row.staffId || row.id || row.fid || row.pid || '').toLowerCase();
     const position = String(row.position || '').toLowerCase();
 
     return name.includes(q) || staffId.includes(q) || position.includes(q);
@@ -147,13 +159,13 @@ async function loadStaffData(useCache = false) {
       page: gStaffPage,
       limit: gStaffLimit,
       searchVal: gStaffSearch
-    });
+    }, 'GET');
 
     if (res && res.success) {
       gStaffData = res.data || [];
       renderStaffKpis(res.stats || {});
       renderStaffTable(gStaffData);
-      renderStaffPagination(res.totalRows || 0);
+      renderStaffPagination(res.totalRows || gStaffData.length || 0);
     } else {
       if (typeof showToast === 'function') showToast("ERROR", res.message || "Staff အချက်အလက်များ ရယူ၍ မရပါ။");
     }
@@ -213,62 +225,91 @@ function renderStaffTable(rawData) {
   }
 
   if (gStaffCategory === 'Full Time') {
-    tbody.innerHTML = data.map((item, idx) => `
+    tbody.innerHTML = data.map((item, idx) => {
+      const uid = item.uniqueid || item.uniqueId || '';
+      const joinDate = item.join_date || item.joinDate || '';
+      const staffIdName = item.staff_idname || item.staffIdName || item.name || '';
+      const salaryGrade = item.salary_grade || item.salaryGrade || 'Non';
+      const workingDays = item.working_days ?? item.workingDays ?? 26;
+      const basicAmt = item.basic_amt ?? item.basicAmt ?? 0;
+      const extraAmt = item.extra_amt ?? item.extraAmt ?? 0;
+      const totalSalary = item.total_salary ?? item.totalSalary ?? 0;
+      const bonus = item.bonus ?? 0;
+      const fund = item.fund ?? 0;
+      const totalNetAmt = item.total_net_amt ?? item.totalNetAmt ?? 0;
+      const nrcNo = item.nrc_no || item.nrcNo || '';
+      const bankAccount = item.bank_account || item.bankAccount || '';
+      const phoneNo = item.phone_no || item.phoneNo || '';
+      const fundDate = item.fund_date || item.fundDate || '';
+      const unpaidBonus = item.unpaid_bonus ?? item.unpaidBonus ?? 0;
+      const unpaidFund = item.unpaid_fund ?? item.unpaidFund ?? 0;
+
+      return `
       <tr class="hover:bg-slate-800/40 transition">
         <td class="text-center text-slate-400 py-3">${item.no || (idx + 1)}</td>
-        <td class="font-mono text-slate-300 py-3">${item.joinDate || ''}</td>
-        <td class="font-bold text-white py-3">${item.staffIdName || item.name}</td>
+        <td class="font-mono text-slate-300 py-3">${joinDate}</td>
+        <td class="font-bold text-white py-3">${staffIdName}</td>
         <td class="text-slate-300 py-3">${item.education || ''}</td>
         <td class="text-indigo-300 font-semibold py-3">${item.position || ''}</td>
-        <td class="font-bold text-amber-400 py-3">${item.salaryGrade || 'Non'}</td>
-        <td class="text-right font-bold text-slate-200 py-3">${item.workingDays || 0}</td>
-        <td class="text-right font-bold text-emerald-400 py-3">${(item.basicAmt || 0).toLocaleString()}</td>
-        <td class="text-right font-bold text-rose-400 py-3">${(item.extraAmt || 0).toLocaleString()}</td>
-        <td class="text-right font-bold text-slate-200 py-3">${(item.totalSalary || 0).toLocaleString()}</td>
-        <td class="text-right font-bold text-emerald-400 py-3">${(item.bonus || 0).toLocaleString()}</td>
-        <td class="text-right font-bold text-teal-400 py-3">${(item.fund || 0).toLocaleString()}</td>
-        <td class="text-right font-extrabold text-indigo-400 py-3">${(item.totalNetAmt || 0).toLocaleString()}</td>
+        <td class="font-bold text-amber-400 py-3">${salaryGrade}</td>
+        <td class="text-right font-bold text-slate-200 py-3">${workingDays}</td>
+        <td class="text-right font-bold text-emerald-400 py-3">${Number(basicAmt).toLocaleString()}</td>
+        <td class="text-right font-bold text-rose-400 py-3">${Number(extraAmt).toLocaleString()}</td>
+        <td class="text-right font-bold text-slate-200 py-3">${Number(totalSalary).toLocaleString()}</td>
+        <td class="text-right font-bold text-emerald-400 py-3">${Number(bonus).toLocaleString()}</td>
+        <td class="text-right font-bold text-teal-400 py-3">${Number(fund).toLocaleString()}</td>
+        <td class="text-right font-extrabold text-indigo-400 py-3">${Number(totalNetAmt).toLocaleString()}</td>
         <td class="py-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${item.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}">${item.status || 'Active'}</span></td>
         <td class="text-slate-300 py-3">${item.gender || 'Male'}</td>
-        <td class="font-mono text-xs text-slate-300 py-3">${item.nrcNo || ''}</td>
-        <td class="font-mono text-xs text-slate-300 py-3">${item.bankAccount || ''}</td>
-        <td class="font-mono text-xs text-slate-300 py-3">${item.phoneNo || ''}</td>
+        <td class="font-mono text-xs text-slate-300 py-3">${nrcNo}</td>
+        <td class="font-mono text-xs text-slate-300 py-3">${bankAccount}</td>
+        <td class="font-mono text-xs text-slate-300 py-3">${phoneNo}</td>
         <td class="font-mono text-xs text-slate-300 py-3">${item.email || ''}</td>
-        <td class="font-mono text-xs text-slate-300 py-3">${item.fundDate || ''}</td>
-        <td class="text-right font-bold text-emerald-400 py-3">${(item.unpaidBonus || 0).toLocaleString()}</td>
-        <td class="text-right font-bold text-teal-400 py-3">${(item.unpaidFund || 0).toLocaleString()}</td>
+        <td class="font-mono text-xs text-slate-300 py-3">${fundDate}</td>
+        <td class="text-right font-bold text-emerald-400 py-3">${Number(unpaidBonus).toLocaleString()}</td>
+        <td class="text-right font-bold text-teal-400 py-3">${Number(unpaidFund).toLocaleString()}</td>
         <td class="text-center py-3 right-0 sticky bg-[#0c1322] border-l border-slate-800 shadow-lg">
           <div class="flex items-center justify-center gap-2">
-            <button onclick="editStaffEntry('${item.uniqueId}')" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-indigo-400 rounded transition" title="Edit Profile"><i class="fa-solid fa-pen-to-square text-xs"></i></button>
-            <button onclick="deleteStaffEntry('${item.uniqueId}')" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-rose-400 rounded transition" title="Delete Profile"><i class="fa-solid fa-trash-can text-xs"></i></button>
+            <button onclick="editStaffEntry('${uid}')" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-indigo-400 rounded transition" title="Edit Profile"><i class="fa-solid fa-pen-to-square text-xs"></i></button>
+            <button onclick="deleteStaffEntry('${uid}')" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-rose-400 rounded transition" title="Delete Profile"><i class="fa-solid fa-trash-can text-xs"></i></button>
           </div>
         </td>
-      </tr>
-    `).join('');
+      </tr>`;
+    }).join('');
   } else {
-    tbody.innerHTML = data.map((item, idx) => `
+    tbody.innerHTML = data.map((item, idx) => {
+      const uid = item.uniqueid || item.uniqueId || '';
+      const joinDate = item.join_date || item.joinDate || '';
+      const staffIdName = item.staff_idname || item.staffIdName || item.name || '';
+      const totalSalary = item.total_salary ?? item.totalSalary ?? 0;
+      const totalNetAmt = item.total_net_amt ?? item.totalNetAmt ?? 0;
+      const nrcNo = item.nrc_no || item.nrcNo || '';
+      const bankAccount = item.bank_account || item.bankAccount || '';
+      const phoneNo = item.phone_no || item.phoneNo || '';
+
+      return `
       <tr class="hover:bg-slate-800/40 transition">
         <td class="text-center text-slate-400 py-3">${item.no || (idx + 1)}</td>
-        <td class="font-mono text-slate-300 py-3">${item.joinDate || ''}</td>
-        <td class="font-bold text-white py-3">${item.staffIdName || item.name}</td>
+        <td class="font-mono text-slate-300 py-3">${joinDate}</td>
+        <td class="font-bold text-white py-3">${staffIdName}</td>
         <td class="text-slate-300 py-3">${item.education || ''}</td>
         <td class="text-indigo-300 font-semibold py-3">${item.position || ''}</td>
-        <td class="text-right font-bold text-indigo-400 py-3">${(item.totalSalary || 0).toLocaleString()}</td>
-        <td class="text-right font-extrabold text-indigo-400 py-3">${(item.totalNetAmt || 0).toLocaleString()}</td>
+        <td class="text-right font-bold text-indigo-400 py-3">${Number(totalSalary).toLocaleString()}</td>
+        <td class="text-right font-extrabold text-indigo-400 py-3">${Number(totalNetAmt).toLocaleString()}</td>
         <td class="py-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${item.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}">${item.status || 'Active'}</span></td>
         <td class="text-slate-300 py-3">${item.gender || 'Male'}</td>
-        <td class="font-mono text-xs text-slate-300 py-3">${item.nrcNo || ''}</td>
-        <td class="font-mono text-xs text-slate-300 py-3">${item.bankAccount || ''}</td>
-        <td class="font-mono text-xs text-slate-300 py-3">${item.phoneNo || ''}</td>
+        <td class="font-mono text-xs text-slate-300 py-3">${nrcNo}</td>
+        <td class="font-mono text-xs text-slate-300 py-3">${bankAccount}</td>
+        <td class="font-mono text-xs text-slate-300 py-3">${phoneNo}</td>
         <td class="font-mono text-xs text-slate-300 py-3">${item.email || ''}</td>
         <td class="text-center py-3 right-0 sticky bg-[#0c1322] border-l border-slate-800 shadow-lg">
           <div class="flex items-center justify-center gap-2">
-            <button onclick="editStaffEntry('${item.uniqueId}')" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-indigo-400 rounded transition" title="Edit Profile"><i class="fa-solid fa-pen-to-square text-xs"></i></button>
-            <button onclick="deleteStaffEntry('${item.uniqueId}')" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-rose-400 rounded transition" title="Delete Profile"><i class="fa-solid fa-trash-can text-xs"></i></button>
+            <button onclick="editStaffEntry('${uid}')" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-indigo-400 rounded transition" title="Edit Profile"><i class="fa-solid fa-pen-to-square text-xs"></i></button>
+            <button onclick="deleteStaffEntry('${uid}')" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-rose-400 rounded transition" title="Delete Profile"><i class="fa-solid fa-trash-can text-xs"></i></button>
           </div>
         </td>
-      </tr>
-    `).join('');
+      </tr>`;
+    }).join('');
   }
 }
 
@@ -302,7 +343,7 @@ function onSearchInputStaff() {
 }
 
 /**
- * 💡 SALARY GRADE DROPDOWN RENDERER (Strictly Uses Google Sheet Data)
+ * 💡 SALARY GRADE DROPDOWN RENDERER (Uses Live D1 Settings)
  */
 function renderGradeDropdownOptions(selectedValue = 'Non') {
   const gradeSelect = document.getElementById('staff-grade');
@@ -324,13 +365,13 @@ function renderGradeDropdownOptions(selectedValue = 'Non') {
 }
 
 /**
- * 💡 Dynamic Dropdown Population (Pure Google Sheet Dependency)
+ * 💡 Dynamic Dropdown Population (D1 Database Compatible)
  */
 async function populateDropdownsStaff(selectedValue = 'Non') {
-  // 1. Fetch live settings directly from Sheet (FullTime!H1:U2)
+  // 1. Fetch live settings directly from D1 Database
   await fetchPayrollSettings();
 
-  // 2. Render Grade Dropdown from Sheet Data
+  // 2. Render Grade Dropdown from D1 Data
   renderGradeDropdownOptions(selectedValue);
 
   // 3. Education Dropdown
@@ -386,7 +427,7 @@ function calculateLiveStaffSalary() {
   const isResigned = !!document.getElementById('staff-resigned')?.value;
 
   const bonusConfig = gPayrollSettings.bonus || 0;
-  const fundRateConfig = gPayrollSettings.fundRate || 0;
+  const fundRateConfig = gPayrollSettings.fundRate || 0.05;
 
   const totalSalary = isResigned ? 0 : Math.round((basic + extra) * (days / 26));
   const bonus = isResigned ? 0 : bonusConfig;
@@ -432,7 +473,7 @@ async function openAddModalStaff() {
 
   if (modal) modal.classList.remove('hidden');
 
-  // Fetch directly from Google Sheet and populate options
+  // Fetch directly from D1 Database and populate options
   await populateDropdownsStaff('Non');
   calculateLiveStaffSalary();
 }
@@ -443,7 +484,7 @@ function closeStaffModal() {
 }
 
 async function editStaffEntry(uniqueId) {
-  const item = gStaffData.find(s => s.uniqueId === uniqueId);
+  const item = gStaffData.find(s => (s.uniqueid === uniqueId || s.uniqueId === uniqueId));
   if (!item) return;
 
   await openAddModalStaff();
@@ -451,28 +492,28 @@ async function editStaffEntry(uniqueId) {
   const title = document.getElementById('staff-form-title');
   if (title) title.textContent = `Edit ${gStaffCategory} Record`;
 
-  if (document.getElementById('staff-uniqueId')) document.getElementById('staff-uniqueId').value = item.uniqueId;
-  if (document.getElementById('staff-joindate')) document.getElementById('staff-joindate').value = item.joinDate || '';
+  if (document.getElementById('staff-uniqueId')) document.getElementById('staff-uniqueId').value = item.uniqueid || item.uniqueId || '';
+  if (document.getElementById('staff-joindate')) document.getElementById('staff-joindate').value = item.join_date || item.joinDate || '';
   if (document.getElementById('staff-name')) document.getElementById('staff-name').value = item.name || '';
   if (document.getElementById('staff-education')) document.getElementById('staff-education').value = item.education || '';
   if (document.getElementById('staff-position')) document.getElementById('staff-position').value = item.position || '';
 
   if (gStaffCategory === 'Full Time') {
-    const gradeVal = item.salaryGrade || 'Non';
+    const gradeVal = item.salary_grade || item.salaryGrade || 'Non';
     await populateDropdownsStaff(gradeVal);
     if (document.getElementById('staff-grade')) document.getElementById('staff-grade').value = gradeVal;
-    if (document.getElementById('staff-working-days')) document.getElementById('staff-working-days').value = item.workingDays || 26;
-    if (document.getElementById('staff-basic')) document.getElementById('staff-basic').value = item.basicAmt || 0;
-    if (document.getElementById('staff-extra')) document.getElementById('staff-extra').value = item.extraAmt || 0;
+    if (document.getElementById('staff-working-days')) document.getElementById('staff-working-days').value = item.working_days ?? item.workingDays ?? 26;
+    if (document.getElementById('staff-basic')) document.getElementById('staff-basic').value = item.basic_amt ?? item.basicAmt ?? 0;
+    if (document.getElementById('staff-extra')) document.getElementById('staff-extra').value = item.extra_amt ?? item.extraAmt ?? 0;
   } else {
-    if (document.getElementById('staff-total-salary')) document.getElementById('staff-total-salary').value = item.totalSalary || 0;
+    if (document.getElementById('staff-total-salary')) document.getElementById('staff-total-salary').value = item.total_salary ?? item.totalSalary ?? 0;
   }
 
-  if (document.getElementById('staff-nrc')) document.getElementById('staff-nrc').value = item.nrcNo || '';
-  if (document.getElementById('staff-bank')) document.getElementById('staff-bank').value = item.bankAccount || '';
-  if (document.getElementById('staff-phone')) document.getElementById('staff-phone').value = item.phoneNo || '';
+  if (document.getElementById('staff-nrc')) document.getElementById('staff-nrc').value = item.nrc_no || item.nrcNo || '';
+  if (document.getElementById('staff-bank')) document.getElementById('staff-bank').value = item.bank_account || item.bankAccount || '';
+  if (document.getElementById('staff-phone')) document.getElementById('staff-phone').value = item.phone_no || item.phoneNo || '';
   if (document.getElementById('staff-email')) document.getElementById('staff-email').value = item.email || '';
-  if (document.getElementById('staff-resigned')) document.getElementById('staff-resigned').value = item.resignedDate || '';
+  if (document.getElementById('staff-resigned')) document.getElementById('staff-resigned').value = item.resigned_date || item.resignedDate || '';
 
   calculateLiveStaffSalary();
 }
@@ -492,7 +533,7 @@ async function saveStaffForm(event) {
   const isResigned = !!document.getElementById('staff-resigned')?.value;
 
   const bonusConfig = gPayrollSettings.bonus || 0;
-  const fundRateConfig = gPayrollSettings.fundRate || 0;
+  const fundRateConfig = gPayrollSettings.fundRate || 0.05;
 
   let totalSalary = 0;
   let bonus = 0;
@@ -578,7 +619,7 @@ function exportToCSVStaff() {
   }
   let csv = "NO,JOIN_DATE,STAFF_IDNAME,POSITION,PHONE,STATUS\n";
   gStaffData.forEach(r => {
-    csv += `"${r.no}","${r.joinDate}","${r.staffIdName || r.name}","${r.position}","${r.phoneNo}","${r.status}"\n`;
+    csv += `"${r.no}","${r.join_date || r.joinDate}","${r.staff_idname || r.staffIdName || r.name}","${r.position}","${r.phone_no || r.phoneNo}","${r.status}"\n`;
   });
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = window.URL.createObjectURL(blob);
@@ -589,7 +630,7 @@ function exportToCSVStaff() {
 }
 
 /**
- * 💡 OPEN GRADE EDIT MODAL (Reads Directly from Google Sheet)
+ * 💡 OPEN GRADE EDIT MODAL (Reads Directly from D1 Database)
  */
 async function openGradeModal() {
   const modal = document.getElementById('grade-modal');
@@ -605,14 +646,14 @@ async function openGradeModal() {
       const input = document.getElementById(`grade-${letter}`);
       const fullKey = `GRADE ${letter}`;
       if (input) {
-        input.value = grades[fullKey] !== undefined ? grades[fullKey] : (grades[letter] || 0);
+        input.value = grades[fullKey] !== undefined ? grades[fullKey] : 0;
       }
     });
 
     const bonusInput = document.getElementById('grade-bonus');
     const fundInput = document.getElementById('grade-fund');
     if (bonusInput) bonusInput.value = gPayrollSettings.bonus || 0;
-    if (fundInput) fundInput.value = gPayrollSettings.fundRate || 0;
+    if (fundInput) fundInput.value = gPayrollSettings.fundRate || 0.05;
 
   } catch (err) {
     console.warn("Grade modal settings fetch warning:", err);
@@ -627,37 +668,37 @@ function closeGradeModal() {
 }
 
 /**
- * 💡 SAVE GRADE FORM (Saves To Google Sheet & Immediately Refreshes Runtime Cache)
+ * 💡 SAVE GRADE FORM (Saves To Cloudflare D1 Database & Immediately Refreshes Cache)
  */
 async function saveGradeForm(event) {
   event.preventDefault();
 
-  const values = [
-    parseFloat(document.getElementById('grade-A')?.value || 0),
-    parseFloat(document.getElementById('grade-B')?.value || 0),
-    parseFloat(document.getElementById('grade-C')?.value || 0),
-    parseFloat(document.getElementById('grade-D')?.value || 0),
-    parseFloat(document.getElementById('grade-E')?.value || 0),
-    parseFloat(document.getElementById('grade-F')?.value || 0),
-    parseFloat(document.getElementById('grade-G')?.value || 0),
-    parseFloat(document.getElementById('grade-H')?.value || 0),
-    parseFloat(document.getElementById('grade-I')?.value || 0),
-    parseFloat(document.getElementById('grade-J')?.value || 0),
-    parseFloat(document.getElementById('grade-K')?.value || 0),
-    parseFloat(document.getElementById('grade-L')?.value || 0),
-    parseFloat(document.getElementById('grade-bonus')?.value || 0),
-    parseFloat(document.getElementById('grade-fund')?.value || 0)
-  ];
+  const payload = {
+    gradeA: parseFloat(document.getElementById('grade-A')?.value || 0),
+    gradeB: parseFloat(document.getElementById('grade-B')?.value || 0),
+    gradeC: parseFloat(document.getElementById('grade-C')?.value || 0),
+    gradeD: parseFloat(document.getElementById('grade-D')?.value || 0),
+    gradeE: parseFloat(document.getElementById('grade-E')?.value || 0),
+    gradeF: parseFloat(document.getElementById('grade-F')?.value || 0),
+    gradeG: parseFloat(document.getElementById('grade-G')?.value || 0),
+    gradeH: parseFloat(document.getElementById('grade-H')?.value || 0),
+    gradeI: parseFloat(document.getElementById('grade-I')?.value || 0),
+    gradeJ: parseFloat(document.getElementById('grade-J')?.value || 0),
+    gradeK: parseFloat(document.getElementById('grade-K')?.value || 0),
+    gradeL: parseFloat(document.getElementById('grade-L')?.value || 0),
+    bonusRate: parseFloat(document.getElementById('grade-bonus')?.value || 0),
+    fundRate: parseFloat(document.getElementById('grade-fund')?.value || 0)
+  };
 
   try {
     if (typeof toggleLoading === 'function') toggleLoading(true);
-    const res = await callApi('updatePayrollSettings', { values });
+    const res = await callApi('updatePayrollSettings', payload);
 
     if (res && res.success) {
-      if (typeof showToast === 'function') showToast("SUCCESS", "Grade Matrix နှုန်းထားများကို Google Sheet ထဲသို့ အောင်မြင်စွာ သိမ်းဆည်းပြီးပါပြီ။");
+      if (typeof showToast === 'function') showToast("SUCCESS", "Grade Matrix နှုန်းထားများကို D1 Database ထဲသို့ အောင်မြင်စွာ သိမ်းဆည်းပြီးပါပြီ။");
       closeGradeModal();
       
-      // Google Sheet မှ တန်ဖိုးအသစ်များကို အချိန်နဲ့တစ်ပြေးညီ ရယူ၍ Dropdown အား ပြန်လည် Render လုပ်ပေးမည်
+      // D1 Database မှ တန်ဖိုးအသစ်များကို ရယူ၍ Dropdown အား ပြန်လည် Render လုပ်မည်
       await fetchPayrollSettings();
       renderGradeDropdownOptions();
     } else {
