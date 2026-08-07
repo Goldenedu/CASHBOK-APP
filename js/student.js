@@ -1,7 +1,7 @@
 /**
  * GOLDEN ERP SYSTEM - STUDENT LIST & DEMOGRAPHICS MODULE (D1 DATABASE COMPATIBLE)
  * File: js/student.js
- * 💡 Student Directory with Precise Column Mapping & Multi-Format ID Resolution
+ * 💡 Features: Old Student History Lookup, Auto-Class Promotion, Auto FYID, FY-Scoped Sequence NO & KPI Calculation
  */
 
 window.StudentState = {
@@ -14,6 +14,25 @@ window.StudentState = {
 };
 
 var searchTimeoutStudent = null;
+var lookupTimeoutStudent = null;
+
+// 💡 Class Promotion Sequence Map (Pre School -> KG -> Grade 1 -> ... -> Grade 12)
+const CLASS_PROMOTION_MAP = {
+  'Pre School': 'KG Student',
+  'KG Student': 'Grade 1',
+  'Grade 1': 'Grade 2',
+  'Grade 2': 'Grade 3',
+  'Grade 3': 'Grade 4',
+  'Grade 4': 'Grade 5',
+  'Grade 5': 'Grade 6',
+  'Grade 6': 'Grade 7',
+  'Grade 7': 'Grade 8',
+  'Grade 8': 'Grade 9',
+  'Grade 9': 'Grade 10',
+  'Grade 10': 'Grade 11',
+  'Grade 11': 'Grade 12',
+  'Grade 12': 'Grade 12'
+};
 
 function filterStudentData(list = [], searchVal = '') {
   if (!searchVal || !searchVal.trim()) return list;
@@ -28,6 +47,9 @@ function filterStudentData(list = [], searchVal = '') {
   });
 }
 
+/**
+ * 💡 Load Student List Data & Calculate Active FY KPI Stats
+ */
 async function loadStudentData(isSilent = false) {
   if (!isSilent && typeof toggleLoading === 'function') toggleLoading(true);
 
@@ -45,7 +67,26 @@ async function loadStudentData(isSilent = false) {
     if (response && response.data) {
       state.activeData = response.data;
       state.totalRows = response.totalRows || response.data.length || 0;
-      state.stats = response.stats || { totalActive: 0, totalInactive: 0, total: 0 };
+
+      // 💡 Calculate Active FY KPIs (Active, Inactive, Total)
+      let actCount = 0;
+      let inactCount = 0;
+
+      response.data.forEach(r => {
+        const transDate = r.transfer_date || r.transferDate || "";
+        const stat = (r.status || "").toLowerCase();
+        if (transDate || stat === "inactive") {
+          inactCount++;
+        } else {
+          actCount++;
+        }
+      });
+
+      state.stats = {
+        totalActive: actCount,
+        totalInactive: inactCount,
+        total: response.data.length
+      };
 
       updateStatsStudent();
       renderStudentTable();
@@ -94,7 +135,7 @@ function renderStudentTable() {
 
   const isViewer = (window.AppState ? window.AppState.currentUserRole : '') === "Viewer";
 
-  tableBody.innerHTML = filteredData.map((row) => {
+  tableBody.innerHTML = filteredData.map((row, idx) => {
     let displayDate = row.date || "";
     if (displayDate) {
       let parts = displayDate.split('-');
@@ -108,15 +149,21 @@ function renderStudentTable() {
       if (parts.length === 3) displayTransDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
     }
 
-    const isInactive = (row.status || "").toLowerCase() === "inactive";
+    // 💡 Auto calculate Active/Inactive Status based on Transfer Date
+    const isTransferred = !!transDateVal;
+    const finalStatus = isTransferred ? "Inactive" : (row.status || "Active");
+    const isInactive = finalStatus.toLowerCase() === "inactive";
+
     const uniqueIdVal = row.uniqueid || row.uniqueId || "";
-    const stuStatusVal = row.stu_status || row.stuStatus || "-";
+    const stuStatusVal = row.stu_status || row.stuStatus || "New Student";
     const parentsNameVal = row.parents_name || row.parentsName || "-";
     const phoneNoVal = row.phone_no || row.phoneNo || "-";
+    const genderVal = row.gender || "Male";
+    const displayNo = row.no || (idx + 1);
 
     return `
       <tr class="hover:bg-slate-800/20 text-slate-300">
-        <td class="text-center font-mono font-semibold text-slate-500">${row.no || '-'}</td>
+        <td class="text-center font-mono font-semibold text-slate-500">${displayNo}</td>
         <td><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">${escapeHtml(stuStatusVal)}</span></td>
         <td class="font-mono text-xs">${escapeHtml(displayDate || '-')}</td>
         <td class="font-mono font-bold text-indigo-300">${escapeHtml(row.fy || '-')}</td>
@@ -127,13 +174,13 @@ function renderStudentTable() {
         <td>${escapeHtml(row.promo || '-')}</td>
         <td>
           <span class="px-2 py-0.5 rounded text-[10px] font-bold ${!isInactive ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}">
-            ${escapeHtml(row.status || 'Active')}
+            ${escapeHtml(finalStatus)}
           </span>
         </td>
-        <td>${escapeHtml(row.gender || '-')}</td>
+        <td>${escapeHtml(genderVal)}</td>
         <td class="font-mono text-xs">${escapeHtml(displayTransDate || '-')}</td>
         <td>${escapeHtml(parentsNameVal)}</td>
-        <td class="font-mono text-xs">${escapeHtml(phoneNoVal)}</td>
+        <td class="font-mono text-xs whitespace-normal max-w-xs">${escapeHtml(phoneNoVal)}</td>
         <td class="max-w-xs truncate" title="${escapeHtml(row.address || '')}">${escapeHtml(row.address || '-')}</td>
         <td class="right-0 sticky bg-[#0c1322] border-l border-slate-800 shadow-lg text-center">
           <div class="flex items-center justify-center gap-3 ${isViewer ? 'hidden' : ''}">
@@ -200,30 +247,144 @@ function populateDynamicFYDropdownStudent(selectId) {
   `;
 }
 
+/**
+ * 💡 Toggle Student Status Event (New Student vs Old Student)
+ */
+function onStudentStatusChange() {
+  const statusEl = document.getElementById('stu-stustatus');
+  const idInput = document.getElementById('stu-id-input');
+  const idLabel = document.getElementById('stu-id-label');
+
+  if (!statusEl || !idInput) return;
+
+  const isOld = statusEl.value === 'Old Student';
+  if (isOld) {
+    idInput.readOnly = false;
+    idInput.placeholder = "Type Student ID (e.g. 1)...";
+    if (idLabel) idLabel.innerHTML = 'Student ID <span class="text-indigo-400 text-[10px]">(Lookup ID)</span>';
+  } else {
+    idInput.readOnly = true;
+    idInput.value = "";
+    idInput.placeholder = "Auto Generated";
+    if (idLabel) idLabel.innerHTML = 'Student ID';
+  }
+}
+
+/**
+ * 💡 Old Student Lookup Logic with Auto-Class Promotion
+ */
+function onOldStudentIdLookup() {
+  clearTimeout(lookupTimeoutStudent);
+  lookupTimeoutStudent = setTimeout(async () => {
+    const statusEl = document.getElementById('stu-stustatus');
+    const idInput = document.getElementById('stu-id-input');
+    if (!statusEl || statusEl.value !== 'Old Student' || !idInput) return;
+
+    const lookupId = idInput.value.trim();
+    if (!lookupId) return;
+
+    // 1. Search locally in activeData first
+    let match = (window.StudentState.activeData || []).find(r => 
+      String(r.student_id || r.studentId || r.id || '') === lookupId ||
+      String(r.fyid || '').toLowerCase().endsWith(`-stu-${lookupId.padStart(3, '0')}`)
+    );
+
+    // 2. If not found locally, query Server API
+    if (!match) {
+      try {
+        const res = await callApi('lookupStudentById', { studentId: lookupId }, 'GET');
+        if (res && res.success && res.data) {
+          match = res.data;
+        }
+      } catch (err) {
+        console.warn("Student lookup API call error:", err);
+      }
+    }
+
+    // 3. Auto-populate Form & Promote Class
+    if (match) {
+      const nameEl = document.getElementById('stu-name');
+      if (nameEl) nameEl.value = match.name || "";
+
+      const genderEl = document.getElementById('stu-gender');
+      if (genderEl) genderEl.value = match.gender || "Male";
+
+      // 💡 Auto Class Promotion Logic
+      const oldClass = match.class || "Pre School";
+      const promotedClass = CLASS_PROMOTION_MAP[oldClass] || oldClass;
+      const classEl = document.getElementById('stu-class');
+      if (classEl) classEl.value = promotedClass;
+
+      const catEl = document.getElementById('stu-category');
+      if (catEl) catEl.value = match.category || "Boarder";
+
+      const promoEl = document.getElementById('stu-promo');
+      if (promoEl) promoEl.value = "Original price";
+
+      const parentsEl = document.getElementById('stu-parents');
+      if (parentsEl) parentsEl.value = match.parents_name || match.parentsName || "";
+
+      const phoneEl = document.getElementById('stu-phone');
+      if (phoneEl) phoneEl.value = match.phone_no || match.phoneNo || "";
+
+      const addrEl = document.getElementById('stu-address');
+      if (addrEl) addrEl.value = match.address || "";
+
+      const hiddenIdEl = document.getElementById('stu-id');
+      if (hiddenIdEl) hiddenIdEl.value = match.student_id || match.studentId || match.id || lookupId;
+
+      if (typeof showToast === 'function') {
+        showToast("SUCCESS", `ကျောင်းသားဟောင်း "${match.name}" ၏ ရာဇဝင်အား ရှာဖွေတွေ့ရှိပါသည်။ အတန်းအား "${promotedClass}" သို့ အလိုအလျောက် တိုးမြှင့်ပေးထားပါသည်။`);
+      }
+    }
+  }, 400);
+}
+
+/**
+ * 💡 Save / Update Student Profile with Auto-Generated FYID & Auto-Status Logic
+ */
 async function saveStudentForm(e) {
   if (e && e.preventDefault) e.preventDefault();
-  closeStudentModal();
 
   const uniqueId = document.getElementById('stu-uniqueId')?.value || '';
   const isAdd = (!uniqueId);
 
+  const transferDateVal = document.getElementById('stu-transferdate')?.value || "";
+  // 💡 Auto calculate status: Has Transfer Date = Inactive, else Active
+  const calculatedStatus = transferDateVal ? "Inactive" : "Active";
+
+  const fyVal = document.getElementById('stu-fy')?.value || "2026-2027";
+  const nameVal = document.getElementById('stu-name')?.value || "";
+
+  // 💡 Auto Generate FYID & FYID Name (e.g. 2627-STU-001)
+  const fyShort = fyVal.replace(/[^0-9]/g, '').slice(2, 6) || "2627";
+  const inputStudentId = document.getElementById('stu-id-input')?.value.trim();
+  const hiddenStudentId = document.getElementById('stu-id')?.value.trim();
+  
+  const studentIdVal = inputStudentId || hiddenStudentId || "";
+
   const entry = {
     uniqueId: uniqueId,
-    id: parseInt(document.getElementById('stu-id')?.value, 10) || "",
+    id: studentIdVal,
+    studentId: studentIdVal,
     date: document.getElementById('stu-date')?.value || "",
-    fy: document.getElementById('stu-fy')?.value || "",
-    name: document.getElementById('stu-name')?.value || "",
+    fy: fyVal,
+    fyShort: fyShort,
+    name: nameVal,
+    gender: document.getElementById('stu-gender')?.value || "Male",
     class: document.getElementById('stu-class')?.value || "",
     category: document.getElementById('stu-category')?.value || "",
-    promo: document.getElementById('stu-promo')?.value || "",
-    stuStatus: document.getElementById('stu-stustatus')?.value || "",
-    transferDate: document.getElementById('stu-transferdate')?.value || "",
+    promo: document.getElementById('stu-promo')?.value || "Original price",
+    stuStatus: document.getElementById('stu-stustatus')?.value || "New Student",
+    status: calculatedStatus,
+    transferDate: transferDateVal,
     parentsName: document.getElementById('stu-parents')?.value || "",
     phoneNo: document.getElementById('stu-phone')?.value || "",
     address: document.getElementById('stu-address')?.value || "",
     createdBy: (window.AppState ? window.AppState.currentUser : '') || "System"
   };
 
+  closeStudentModal();
   const action = isAdd ? 'saveStudentEntry' : 'updateStudentEntry';
   if (typeof showToast === 'function') showToast("SUCCESS", "ကျောင်းသား အချက်အလက် ထည့်သွင်း/ပြင်ဆင်နေပါသည်...");
 
@@ -262,6 +423,7 @@ function openAddModalStudent() {
   }
 
   populateDynamicFYDropdownStudent('stu-fy');
+  onStudentStatusChange();
 
   const modalEl = document.getElementById('student-modal');
   if (modalEl) modalEl.classList.remove('hidden');
@@ -272,9 +434,6 @@ function closeStudentModal() {
   if (modalEl) modalEl.classList.add('hidden');
 }
 
-/**
- * 💡 Edit Student Profile (Handles both D1 snake_case & camelCase uniqueid)
- */
 function editStudentEntry(uniqueId) {
   const row = window.StudentState.activeData.find(item => item.uniqueid === uniqueId || item.uniqueId === uniqueId);
   if (!row) {
@@ -288,7 +447,11 @@ function editStudentEntry(uniqueId) {
   if (uidEl) uidEl.value = row.uniqueid || row.uniqueId || "";
 
   const idEl = document.getElementById('stu-id');
-  if (idEl) idEl.value = row.student_id || row.studentId || row.id || "";
+  const stuIdVal = row.student_id || row.studentId || row.id || "";
+  if (idEl) idEl.value = stuIdVal;
+
+  const idInputEl = document.getElementById('stu-id-input');
+  if (idInputEl) idInputEl.value = stuIdVal;
 
   const dateEl = document.getElementById('stu-date');
   if (dateEl) dateEl.value = row.date || "";
@@ -302,6 +465,9 @@ function editStudentEntry(uniqueId) {
   const nameEl = document.getElementById('stu-name');
   if (nameEl) nameEl.value = row.name || "";
 
+  const genderEl = document.getElementById('stu-gender');
+  if (genderEl) genderEl.value = row.gender || "Male";
+
   const classEl = document.getElementById('stu-class');
   if (classEl) classEl.value = row.class || "";
 
@@ -309,7 +475,7 @@ function editStudentEntry(uniqueId) {
   if (catEl) catEl.value = row.category || "";
 
   const promoEl = document.getElementById('stu-promo');
-  if (promoEl) promoEl.value = row.promo || "";
+  if (promoEl) promoEl.value = row.promo || "Original price";
   
   const transDateEl = document.getElementById('stu-transferdate');
   if (transDateEl) transDateEl.value = row.transfer_date || row.transferDate || "";
@@ -349,14 +515,17 @@ function exportToCSVStudent() {
   }
 
   let csv = "NO,STU STATUS,DATE,FY,ID,FYID,NAME,CLASS,CATEGORY,PROMO,STATUS,GENDER,TRANSFER DATE,PARENTS NAME,PHONE NO,ADDRESS,UNIQUEID\n";
-  data.forEach(row => {
+  data.forEach((row, idx) => {
     let name = `"${(row.name || '').replace(/"/g, '""')}"`;
     let parents = `"${(row.parents_name || row.parentsName || '').replace(/"/g, '""')}"`;
     let addr = `"${(row.address || '').replace(/"/g, '""')}"`;
     let cls = `"${(row.class || '').replace(/"/g, '""')}"`;
     let cat = `"${(row.category || '').replace(/"/g, '""')}"`;
+    let transDate = row.transfer_date || row.transferDate || '';
+    let isTransformed = !!transDate;
+    let stat = isTransformed ? 'Inactive' : (row.status || 'Active');
 
-    csv += `${row.no || ''},${row.stu_status || row.stuStatus || ''},${row.date || ''},${row.fy || ''},${row.student_id || row.id || ''},${row.fyid || ''},${name},${cls},${cat},${row.promo || ''},${row.status || ''},${row.gender || ''},${row.transfer_date || row.transferDate || ''},${parents},${row.phone_no || row.phoneNo || ''},${addr},${row.uniqueid || row.uniqueId || ''}\n`;
+    csv += `${row.no || (idx + 1)},${row.stu_status || row.stuStatus || ''},${row.date || ''},${row.fy || ''},${row.student_id || row.id || ''},${row.fyid || ''},${name},${cls},${cat},${row.promo || ''},${stat},${row.gender || 'Male'},${transDate},${parents},${row.phone_no || row.phoneNo || ''},${addr},${row.uniqueid || row.uniqueId || ''}\n`;
   });
 
   const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
@@ -380,3 +549,5 @@ window.deleteStudentEntry = deleteStudentEntry;
 window.exportToCSVStudent = exportToCSVStudent;
 window.onSearchInputStudent = onSearchInputStudent;
 window.changePageStudent = changePageStudent;
+window.onStudentStatusChange = onStudentStatusChange;
+window.onOldStudentIdLookup = onOldStudentIdLookup;
