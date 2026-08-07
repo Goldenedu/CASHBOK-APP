@@ -1,7 +1,7 @@
 /**
  * GOLDEN ERP SYSTEM - STUDENT LIST & DEMOGRAPHICS MODULE (D1 DATABASE COMPATIBLE)
  * File: js/student.js
- * 💡 Features: All-FY Table List Rendering, Active FY KPI Cards Analytics, 4-Digit FYID Padding, Integer NO, Gender Auto-Detect & Old Student Lookup
+ * 💡 Features: All-FY Table List Rendering, Active FY KPI Cards Analytics, FYID Sanitizer (2627-STU-0002), Integer NO, Gender Auto-Detect & Old Student Lookup
  */
 
 window.StudentState = {
@@ -10,14 +10,13 @@ window.StudentState = {
   totalRows: 0,
   activeData: [],
   searchVal: '',
-  fyFilter: '', // 💡 Default "" = All FY for Table List
+  fyFilter: '', // Default "" = All FY for Table List
   stats: { totalActive: 0, totalInactive: 0, total: 0 }
 };
 
 var searchTimeoutStudent = null;
 var lookupTimeoutStudent = null;
 
-// 💡 Class Promotion Sequence Map (Pre School -> KG -> Grade 1 -> ... -> Grade 12)
 const CLASS_PROMOTION_MAP = {
   'Pre School': 'KG Student',
   'KG Student': 'Grade 1',
@@ -35,26 +34,20 @@ const CLASS_PROMOTION_MAP = {
   'Grade 12': 'Grade 12'
 };
 
-/**
- * 💡 Gender Auto-Detect Logic based on Student Name Prefixes
- */
 function autoDetectGender(nameStr) {
   if (!nameStr) return 'Male';
   const clean = String(nameStr).trim();
 
-  // Male Prefix Checks
   if (clean.startsWith('မောင်') || clean.startsWith('ကို') || clean.startsWith('ဦး') ||
       /^(Mg|Ko|U)\b/i.test(clean) || /^(မောင်|ကို|ဦး)/.test(clean)) {
     return 'Male';
   }
 
-  // Female Prefix Checks
   if (clean.startsWith('မေ') || clean.startsWith('ဒေါ်') || clean.startsWith('Daw') || clean.startsWith('May') ||
       /^(May|Daw)\b/i.test(clean)) {
     return 'Female';
   }
 
-  // Check 'မ' or 'Ma' (excluding 'မောင်')
   if ((clean.startsWith('မ') && !clean.startsWith('မောင်')) || /^(Ma)\b/i.test(clean)) {
     return 'Female';
   }
@@ -62,9 +55,6 @@ function autoDetectGender(nameStr) {
   return 'Male';
 }
 
-/**
- * 💡 Compute 4-Digit FY Short Code (e.g. "2026-2027" -> "2627")
- */
 function getFyShortCode(fyStr) {
   if (!fyStr) return '2627';
   const parts = String(fyStr).split(/[-/]/);
@@ -76,19 +66,14 @@ function getFyShortCode(fyStr) {
   return '2627';
 }
 
-/**
- * 💡 Multi-Criteria Filter: FY Filter + Search Query
- */
 function filterStudentData(list = [], searchVal = '', fyFilter = '') {
   let filtered = list;
 
-  // 1. Filter by FY if specifically selected
   if (fyFilter && fyFilter.trim()) {
     const fyQ = fyFilter.trim().toLowerCase();
     filtered = filtered.filter(row => String(row.fy || '').trim().toLowerCase() === fyQ);
   }
 
-  // 2. Filter by Search Query
   if (searchVal && searchVal.trim()) {
     const q = searchVal.trim().toLowerCase();
     filtered = filtered.filter(row => {
@@ -103,9 +88,6 @@ function filterStudentData(list = [], searchVal = '', fyFilter = '') {
   return filtered;
 }
 
-/**
- * 💡 Load Student List Data
- */
 async function loadStudentData(isSilent = false) {
   if (!isSilent && typeof toggleLoading === 'function') toggleLoading(true);
 
@@ -134,9 +116,6 @@ async function loadStudentData(isSilent = false) {
   }
 }
 
-/**
- * 💡 Populate FY Filter Options on Main Directory Bar (Default = All FY)
- */
 function populateMainFYFilterStudent() {
   const select = document.getElementById('student-filter-fy');
   if (!select) return;
@@ -150,7 +129,7 @@ function populateMainFYFilterStudent() {
   });
 
   const currentSelected = select.value !== undefined ? select.value : (window.StudentState.fyFilter || '');
-  let html = '<option value="" selected>-- All FY (စာရင်းအားလုံး) --</option>';
+  let html = '<option value="" selected>-- All FY --</option>';
   fySet.forEach(fy => {
     html += `<option value="${fy}" ${fy === currentSelected ? 'selected' : ''}>${fy}</option>`;
   });
@@ -168,14 +147,9 @@ function onFyFilterChangeStudent() {
   }
 }
 
-/**
- * 💡 Update Stats Cards Strictly for Active FY 2026-2027 (Or Selected FY)
- */
 function updateStatsStudent() {
   const rawData = window.StudentState.activeData || [];
   const selectedFy = document.getElementById('student-filter-fy')?.value;
-
-  // 💡 Default KPI Cards Scope = Active FY "2026-2027" unless specific FY selected
   const targetFyForKpi = selectedFy || '2026-2027';
 
   let fyList = rawData;
@@ -209,9 +183,6 @@ function updateStatsStudent() {
   if (countEl) countEl.innerText = Number(fyList.length).toLocaleString('en-US');
 }
 
-/**
- * 💡 Render Student Table Grid Rows (All FY Rows Included by Default)
- */
 function renderStudentTable() {
   const tableBody = document.getElementById('student-table-body');
   if (!tableBody) return;
@@ -223,7 +194,6 @@ function renderStudentTable() {
 
   const filteredData = filterStudentData(rawData, searchVal, fyFilter);
 
-  // 💡 Synchronize Pagination Bar with actual rendered rows
   updatePaginationStudent(filteredData.length);
 
   if (!filteredData || filteredData.length === 0) {
@@ -258,7 +228,7 @@ function renderStudentTable() {
 
     const detectedGender = row.gender || autoDetectGender(row.name);
 
-    // 💡 FYID Display Sanitizer (Fixes old decimal artifacts e.g. "2627-STU-02.0" -> "2627-STU-0002")
+    // 💡 FYID Display Sanitizer (Clean .0 decimal artifacts e.g. "2627-STU-02.0" -> "2627-STU-0002")
     let displayFyid = row.fyid || '-';
     if (displayFyid.includes('.0')) {
       displayFyid = displayFyid.replace(/\.0/g, '');
@@ -269,7 +239,6 @@ function renderStudentTable() {
       }
     }
 
-    // 💡 Integer NO (Ensure clean integer display 1, 2, 3)
     const rawNo = row.no !== undefined && row.no !== null && row.no !== "" ? row.no : (idx + 1);
     const displayNo = parseInt(rawNo, 10) || (idx + 1);
 
@@ -309,9 +278,6 @@ function renderStudentTable() {
   }).join('');
 }
 
-/**
- * 💡 Synchronized Pagination Bar Helper
- */
 function updatePaginationStudent(currentCount) {
   const state = window.StudentState;
   const info = document.getElementById('stu-pagination-info');
