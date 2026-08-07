@@ -296,7 +296,9 @@ function editStudentEntry(uniqueId) {
   }
 
   openAddModalStudent();
-
+  const stuStatusEl = document.getElementById('stu-stustatus');
+  if (stuStatusEl) stuStatusEl.value = row.stuStatus || "New Student";
+  
   const uidEl = document.getElementById('stu-uniqueId');
   if (uidEl) uidEl.value = row.uniqueId;
 
@@ -320,10 +322,7 @@ function editStudentEntry(uniqueId) {
 
   const promoEl = document.getElementById('stu-promo');
   if (promoEl) promoEl.value = row.promo || "";
-
-  const stuStatusEl = document.getElementById('stu-stustatus');
-  if (stuStatusEl) stuStatusEl.value = row.stuStatus || "New Student";
-
+  
   const transDateEl = document.getElementById('stu-transferdate');
   if (transDateEl) transDateEl.value = row.transferDate || "";
 
