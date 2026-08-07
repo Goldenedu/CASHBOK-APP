@@ -49,7 +49,7 @@
           <i class="fa-solid fa-graduation-cap text-4xl text-amber-400 filter drop-shadow-[0_2px_8px_rgba(245,158,11,0.5)]"></i>
         </div>
         
-        <!-- 🏫 2. Title: Golden Education Private High School (100% ပေါ်စေမည့် ရွှေရောင် စာသား) -->
+        <!-- 🏫 2. Title: Golden Education Private High School -->
         <h2 class="text-xl font-black tracking-tight mb-1 text-gold-gradient filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
           Golden Education Private High School
         </h2>
@@ -63,7 +63,6 @@
       <form id="login-form" onsubmit="handleLoginSubmit(event)" class="space-y-4 text-xs text-left">
         <div>
           <label class="block font-bold text-[11px] text-slate-300 uppercase tracking-widest mb-1.5">Username</label>
-          <!-- 🛠️ SECURED: Removed list="username-list" attribute & client-side datalists -->
           <input type="text" id="login-username" required placeholder="Type username..." class="w-full p-3 bg-[#070a12]/80 border border-slate-700/60 rounded-xl text-xs text-slate-100 placeholder:text-slate-600 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 transition-all duration-300">
         </div>
 
@@ -106,7 +105,7 @@
         </button>
       </div>
 
-      <!-- 💡 SIDEBAR NAV (COMPACT SPACING FOR ONE-PAGE FIT) -->
+      <!-- 💡 SIDEBAR NAV -->
       <nav class="flex-1 px-2.5 py-2.5 space-y-0.5 overflow-y-auto" id="sidebar-nav">
         <!-- Dashboard -->
         <button onclick="switchTab('dashboard')" id="btn-dashboard" class="nav-btn w-full text-left px-3.5 py-2 rounded-lg text-slate-300 hover:text-white flex items-center gap-2.5 text-xs font-semibold">
@@ -161,7 +160,7 @@
           <i class="fa-solid fa-hand-holding-dollar text-teal-400 w-4 text-center"></i> Staff Fund Report
         </button>
 
-        <!-- 💡 CASHIER CASH BOOK MENU BUTTON (RIGHT ABOVE SYSTEM CONTROLS) -->
+        <!-- Cashier Sub-Ledger -->
         <p class="text-[9px] font-bold text-slate-500 px-3 uppercase tracking-wider mt-2.5 mb-1">Cashier Sub-Ledger</p>
         <button onclick="switchTab('cashier')" id="btn-cashier" class="nav-btn w-full text-left px-3.5 py-2 rounded-lg text-slate-300 hover:text-white flex items-center gap-2.5 text-xs font-semibold">
           <i class="fa-solid fa-cash-register text-emerald-400 w-4 text-center"></i> Cashier Cash Book
@@ -197,19 +196,19 @@
 
   <div id="toast-container" class="fixed bottom-5 right-5 z-[200] flex flex-col gap-2 pointer-events-none"></div>
 
-  <!-- 💡 CANONICAL SHARED SALARY GRADE MATRIX MODAL (Range H1:U2 & Grade A to L) -->
+  <!-- 💡 CANONICAL SHARED SALARY GRADE MATRIX MODAL (Cloudflare D1 Database) -->
   <div id="grade-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
     <div class="bg-[#0c1322] border border-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
       <div class="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-[#0e172a] shrink-0">
         <h3 class="text-sm font-black text-amber-400 uppercase tracking-wider flex items-center gap-2">
-          <i class="fa-solid fa-sliders"></i> Edit Salary Grade Matrix Settings (FullTime Sheet Range H1:U2)
+          <i class="fa-solid fa-sliders"></i> Edit Salary Grade Matrix Settings (Cloudflare D1 Database)
         </h3>
         <button onclick="closeGradeModal()" class="text-slate-500 hover:text-white transition"><i class="fa-solid fa-xmark text-sm"></i></button>
       </div>
 
       <form id="grade-form" onsubmit="saveGradeForm(event)" class="p-6 space-y-4 overflow-y-auto flex-1 text-xs">
         <div class="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-[11px] text-amber-300 font-semibold mb-2">
-          ⚠️ ဤနေရာတွင် ပြင်ဆင်လိုက်သော Grade နှုန်းထားများ၊ BONUS နှင့် FUND တို့သည် Google Sheet (FullTime!H1:U2) ထဲတွင် အလိုအလျောက် သွားရောက် Update ဖြစ်ပြီး စနစ်တစ်ခုလုံးတွင် တိုက်ရိုက် သက်ရောက်သွားပါမည်။
+          ⚠️ ဤနေရာတွင် ပြင်ဆင်လိုက်သော Grade နှုန်းထားများ၊ BONUS နှင့် FUND တို့သည် Cloudflare D1 Database ထဲတွင် အလိုအလျောက် သွားရောက် Update ဖြစ်ပြီး စနစ်တစ်ခုလုံးတွင် တိုက်ရိုက် သက်ရောက်သွားပါမည်။
         </div>
 
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -456,5 +455,4 @@
   <!-- 💡 EOY Drive Backup & Reset controller — split out of settings.js, self-wires into loadSettingsData() above -->
   <script src="js/settings-eoy.js?v=20260730" defer></script>
 </body>
-</html
-  
+</html>
