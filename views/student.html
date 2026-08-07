@@ -112,7 +112,7 @@
       <input type="hidden" id="stu-uniqueId">
       <input type="hidden" id="stu-id">
 
-      <!-- 💡 ပထမတန်း: Date | Student Status | Fiscal Year (3 Columns) -->
+      <!-- 💡 Row 1: Date | Student Status | Fiscal Year (3 Cols) -->
       <div class="grid grid-cols-3 gap-4">
         <div class="flex flex-col gap-1">
           <label class="font-bold text-slate-400 uppercase tracking-wide">Date</label>
@@ -120,7 +120,7 @@
         </div>
         <div class="flex flex-col gap-1">
           <label class="font-bold text-slate-400 uppercase tracking-wide">Student Status</label>
-          <select id="stu-stustatus" required class="w-full bg-[#0f172a] border border-slate-800 text-slate-100 rounded-lg p-2.5 outline-none focus:border-indigo-500 font-bold">
+          <select id="stu-stustatus" onchange="onStudentStatusChange()" required class="w-full bg-[#0f172a] border border-slate-800 text-slate-100 rounded-lg p-2.5 outline-none focus:border-indigo-500 font-bold">
             <option value="New Student">New Student (ကျောင်းသားသစ်)</option>
             <option value="Old Student">Old Student (ကျောင်းသားဟောင်း)</option>
           </select>
@@ -131,15 +131,30 @@
         </div>
       </div>
 
-      <div class="flex flex-col gap-1">
-        <label class="font-bold text-slate-400 uppercase tracking-wide">Student Name (ကျောင်းသားအမည်)</label>
-        <input type="text" id="stu-name" required placeholder="မောင် / မ xxxx..." class="w-full font-bold text-slate-100 bg-[#0f172a] border border-slate-800 rounded-lg p-2.5 outline-none focus:border-indigo-500">
+      <!-- 💡 Row 2: Student ID Lookup | Student Name | Gender (3 Cols) -->
+      <div class="grid grid-cols-3 gap-4">
+        <div class="flex flex-col gap-1">
+          <label id="stu-id-label" class="font-bold text-indigo-400 uppercase tracking-wide">Student ID</label>
+          <input type="text" id="stu-id-input" oninput="onOldStudentIdLookup()" placeholder="Auto Generated" class="w-full font-mono font-bold bg-[#0f172a] border border-slate-800 text-indigo-300 rounded-lg p-2.5 outline-none focus:border-indigo-500">
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="font-bold text-slate-400 uppercase tracking-wide">Student Name (ကျောင်းသားအမည်)</label>
+          <input type="text" id="stu-name" required placeholder="မောင် / မ xxxx..." class="w-full font-bold text-slate-100 bg-[#0f172a] border border-slate-800 rounded-lg p-2.5 outline-none focus:border-indigo-500">
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="font-bold text-slate-400 uppercase tracking-wide">Gender (ကျား / မ)</label>
+          <select id="stu-gender" required class="w-full bg-[#0f172a] border border-slate-800 text-slate-100 rounded-lg p-2.5 outline-none focus:border-indigo-500 font-bold">
+            <option value="Male">Male (ကျား)</option>
+            <option value="Female">Female (မ)</option>
+          </select>
+        </div>
       </div>
 
+      <!-- 💡 Row 3: Class | Category | Promo Plan (3 Cols) -->
       <div class="grid grid-cols-3 gap-4">
         <div class="flex flex-col gap-1">
           <label class="font-bold text-slate-400 uppercase tracking-wide">Class (အတန်း)</label>
-          <select id="stu-class" required class="w-full bg-[#0f172a] border border-slate-800 text-slate-100 rounded-lg p-2.5 outline-none focus:border-indigo-500">
+          <select id="stu-class" required class="w-full bg-[#0f172a] border border-slate-800 text-slate-100 rounded-lg p-2.5 outline-none focus:border-indigo-500 font-bold">
             <option value="Pre School">Pre School</option>
             <option value="KG Student">KG Student</option>
             <option value="Grade 1">Grade 1</option>
@@ -157,7 +172,7 @@
           </select>
         </div>
         <div class="flex flex-col gap-1">
-          <label class="font-bold text-slate-400 uppercase tracking-wide">Category (အမျိုးအစား)</label>
+          <label class="font-bold text-slate-400 uppercase tracking-wide">Category (နေထိုင်မှု)</label>
           <select id="stu-category" required class="w-full bg-[#0f172a] border border-slate-800 text-slate-100 rounded-lg p-2.5 outline-none focus:border-indigo-500">
             <option value="Boarder">Boarder</option>
             <option value="Semi Boarder">Semi Boarder</option>
@@ -179,6 +194,7 @@
         </div>
       </div>
 
+      <!-- 💡 Row 4: Transfer Date | Parents Name (2 Cols) -->
       <div class="grid grid-cols-2 gap-4">
         <div class="flex flex-col gap-1">
           <label class="font-bold text-rose-400 uppercase tracking-wide">Transfer Date (နုတ်ထွက်ရက်)</label>
@@ -190,11 +206,13 @@
         </div>
       </div>
 
+      <!-- 💡 Row 5: Phone No -->
       <div class="flex flex-col gap-1">
-        <label class="font-bold text-slate-400 uppercase tracking-wide">Phone No (ဖုန်းနံပါတ်)</label>
-        <input type="text" id="stu-phone" placeholder="09-xxxxxxxxx, 09-xxxxxxxxx" class="w-full font-mono bg-[#0f172a] border border-slate-800 text-slate-100 rounded-lg p-2.5 outline-none focus:border-indigo-500">
+        <label class="font-bold text-slate-400 uppercase tracking-wide">Phone No (ဖုန်းနံပါတ် - ကော်မာခြား၍ ရေးနိုင်သည်)</label>
+        <input type="text" id="stu-phone" placeholder="09-123456789, 09-987654321" class="w-full font-mono bg-[#0f172a] border border-slate-800 text-slate-100 rounded-lg p-2.5 outline-none focus:border-indigo-500">
       </div>
 
+      <!-- 💡 Row 6: Address -->
       <div class="flex flex-col gap-1">
         <label class="font-bold text-slate-400 uppercase tracking-wide">Address (နေရပ်လိပ်စာ)</label>
         <textarea id="stu-address" rows="2" placeholder="အသေးစိတ် နေရပ်လိပ်စာ..." class="w-full bg-[#0f172a] border border-slate-800 text-slate-100 rounded-lg p-2.5 outline-none focus:border-indigo-500"></textarea>
