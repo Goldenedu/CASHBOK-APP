@@ -41,11 +41,11 @@
         <input type="text" id="student-search" oninput="onSearchInputStudent()" placeholder="Search student name, FYID, student ID..." class="w-full pl-9 pr-4 py-2 text-xs rounded-lg bg-[#0f172a] border border-slate-800 text-white focus:outline-none focus:border-indigo-500 transition-all">
       </div>
 
-      <!-- 💡 FY FILTER DROPDOWN -->
+      <!-- 💡 FY FILTER DROPDOWN (Default = All FY) -->
       <div class="w-full sm:w-44">
         <select id="student-filter-fy" onchange="onFyFilterChangeStudent()" class="w-full text-xs bg-[#0f172a] border border-slate-800 text-white rounded-lg px-3 py-2 outline-none focus:border-indigo-500 transition-all font-bold">
-          <option value="">-- All FY --</option>
-          <option value="2026-2027" selected>2026-2027</option>
+          <option value="" selected>-- All FY --</option>
+          <option value="2026-2027">2026-2027</option>
           <option value="2027-2028">2027-2028</option>
         </select>
       </div>
@@ -142,7 +142,7 @@
         </div>
       </div>
 
-      <!-- 💡 Row 2: Student ID (1 Col) | Student Name (2 Cols Extended) -->
+      <!-- 💡 Row 2: Student ID (1 Col) | Student Name (2 Cols Extended - Fixed onOldStudentIdLookup) -->
       <div class="grid grid-cols-3 gap-4">
         <div class="flex flex-col gap-1">
           <label id="stu-id-label" class="font-bold text-indigo-400 uppercase tracking-wide">Student ID</label>
