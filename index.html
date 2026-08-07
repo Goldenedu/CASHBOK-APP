@@ -62,13 +62,24 @@
 
       <form id="login-form" onsubmit="handleLoginSubmit(event)" class="space-y-4 text-xs text-left">
         <div>
-          <label class="block font-bold text-[11px] text-slate-300 uppercase tracking-widest mb-1.5">Username</label>
-          <input type="text" id="login-username" required placeholder="Type username..." class="w-full p-3 bg-[#070a12]/80 border border-slate-700/60 rounded-xl text-xs text-slate-100 placeholder:text-slate-600 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 transition-all duration-300">
+          <label class="block font-bold text-[11px] text-slate-300 uppercase tracking-widest mb-1.5">Select Username / Role</label>
+          <!-- 💡 8 Roles Dropdown List -->
+          <select id="login-username" required class="w-full p-3 bg-[#070a12]/80 border border-slate-700/60 rounded-xl text-xs text-slate-100 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 transition-all duration-300 font-bold">
+            <option value="">-- Select Username --</option>
+            <option value="Owner">Owner</option>
+            <option value="Admin">Admin</option>
+            <option value="Finance">Finance</option>
+            <option value="HR">HR</option>
+            <option value="Accountant">Accountant</option>
+            <option value="Cashier">Cashier</option>
+            <option value="Staff">Staff</option>
+            <option value="Viewer">Viewer</option>
+          </select>
         </div>
 
         <div>
           <label class="block font-bold text-[11px] text-slate-300 uppercase tracking-widest mb-1.5">Password</label>
-          <input type="password" id="login-password" required placeholder="••••••••" class="w-full p-3 bg-[#070a12]/80 border border-slate-700/60 rounded-xl text-xs text-slate-100 placeholder:text-slate-600 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 transition-all duration-300">
+          <input type="password" id="login-password" required placeholder="Type password..." class="w-full p-3 bg-[#070a12]/80 border border-slate-700/60 rounded-xl text-xs text-slate-100 placeholder:text-slate-600 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 transition-all duration-300">
         </div>
 
         <div id="login-error" class="hidden text-rose-400 font-semibold text-[11px] bg-rose-500/10 border border-rose-500/20 p-2.5 rounded-xl text-center"></div>
