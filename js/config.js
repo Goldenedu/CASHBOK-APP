@@ -58,7 +58,7 @@ function getApiUrl() {
   }
   
   // Production environment
-  return localStorage.getItem('prod_api_url') || 'https://cashbook-api.goldeneduprivateschool.workers.dev';
+  return localStorage.getItem('prod_api_url') || 'https://cashbook-app-api.goldeneduprivateschool.workers.dev';
 }
 
 window.CONFIG = {
