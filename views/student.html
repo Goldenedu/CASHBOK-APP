@@ -131,22 +131,15 @@
         </div>
       </div>
 
-      <!-- 💡 Row 2: Student ID Lookup | Student Name | Gender (3 Cols) -->
+      <!-- 💡 Row 2: Student ID (1 Col) | Student Name (2 Cols - Extended Width, Gender Auto-Detected) -->
       <div class="grid grid-cols-3 gap-4">
         <div class="flex flex-col gap-1">
           <label id="stu-id-label" class="font-bold text-indigo-400 uppercase tracking-wide">Student ID</label>
           <input type="text" id="stu-id-input" oninput="onOldStudentIdLookup()" placeholder="Auto Generated" class="w-full font-mono font-bold bg-[#0f172a] border border-slate-800 text-indigo-300 rounded-lg p-2.5 outline-none focus:border-indigo-500">
         </div>
-        <div class="flex flex-col gap-1">
+        <div class="col-span-2 flex flex-col gap-1">
           <label class="font-bold text-slate-400 uppercase tracking-wide">Student Name (ကျောင်းသားအမည်)</label>
           <input type="text" id="stu-name" required placeholder="မောင် / မ xxxx..." class="w-full font-bold text-slate-100 bg-[#0f172a] border border-slate-800 rounded-lg p-2.5 outline-none focus:border-indigo-500">
-        </div>
-        <div class="flex flex-col gap-1">
-          <label class="font-bold text-slate-400 uppercase tracking-wide">Gender (ကျား / မ)</label>
-          <select id="stu-gender" required class="w-full bg-[#0f172a] border border-slate-800 text-slate-100 rounded-lg p-2.5 outline-none focus:border-indigo-500 font-bold">
-            <option value="Male">Male (ကျား)</option>
-            <option value="Female">Female (မ)</option>
-          </select>
         </div>
       </div>
 
