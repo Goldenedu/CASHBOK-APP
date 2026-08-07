@@ -244,6 +244,7 @@ function renderStaffTable(rawData) {
       const joinDate = item.join_date || item.joinDate || '';
       const staffIdName = item.staff_idname || item.staffIdName || item.name || '';
       const salaryGrade = item.salary_grade || item.salaryGrade || 'Non';
+      const displayNo = parseInt(item.no || (idx + 1), 10);
       const workingDays = item.working_days ?? item.workingDays ?? 26;
       const basicAmt = item.basic_amt ?? item.basicAmt ?? 0;
       const extraAmt = item.extra_amt ?? item.extraAmt ?? 0;
