@@ -293,9 +293,9 @@ window.callApi = async function(action, payload = {}, method = 'POST') {
 window.prefetchCoreModules = function() {
   window.viewCache = window.viewCache || {};
   const views = [
-    'dashboard', 'bank-cash-kit', 'income', 'office', 'hr',
-    'cashier', 'student', 'uniform', 'promotion', 'reports',
-    'reports-fund', 'settings'
+  'dashboard', 'bank-cash', 'income', 'office-kit', 'hr',
+  'cashier', 'student', 'uniform', 'promotion', 'reports',
+  'reports-fund', 'settings'
   ];
 
   views.forEach(v => {
