@@ -1,7 +1,7 @@
 /**
  * GOLDEN ERP SYSTEM - STUDENT LIST & DEMOGRAPHICS MODULE (D1 DATABASE COMPATIBLE)
  * File: js/student.js
- * 💡 Features: Old Student History Lookup, Auto-Class Promotion, Auto FYID, FY-Scoped Sequence NO & KPI Calculation
+ * 💡 Features: Gender Auto-Detect, 4-Digit FYID Padding (2627-STU-0001), Integer NO (1, 2, 3), Old Student Lookup & Class Promotion
  */
 
 window.StudentState = {
@@ -33,6 +33,50 @@ const CLASS_PROMOTION_MAP = {
   'Grade 11': 'Grade 12',
   'Grade 12': 'Grade 12'
 };
+
+/**
+ * 💡 Gender Auto-Detect Logic based on Student Name Prefixes
+ * - မောင်, ကို, ဦး, Mg, Ko, U -> Male
+ * - မေ, ဒေါ်, Daw, May -> Female
+ * - မ, Ma (မောင် မဟုတ်ပါက) -> Female
+ */
+function autoDetectGender(nameStr) {
+  if (!nameStr) return 'Male';
+  const clean = String(nameStr).trim();
+
+  // Male Prefix Checks (Check "မောင်" before "မ")
+  if (clean.startsWith('မောင်') || clean.startsWith('ကို') || clean.startsWith('ဦး') ||
+      /^(Mg|Ko|U)\b/i.test(clean) || /^(မောင်|ကို|ဦး)/.test(clean)) {
+    return 'Male';
+  }
+
+  // Female Prefix Checks
+  if (clean.startsWith('မေ') || clean.startsWith('ဒေါ်') || clean.startsWith('Daw') || clean.startsWith('May') ||
+      /^(May|Daw)\b/i.test(clean)) {
+    return 'Female';
+  }
+
+  // Check 'မ' or 'Ma' (excluding 'မောင်')
+  if ((clean.startsWith('မ') && !clean.startsWith('မောင်')) || /^(Ma)\b/i.test(clean)) {
+    return 'Female';
+  }
+
+  return 'Male';
+}
+
+/**
+ * 💡 Compute 4-Digit FY Short Code (e.g. "2026-2027" -> "2627")
+ */
+function getFyShortCode(fyStr) {
+  if (!fyStr) return '2627';
+  const parts = String(fyStr).split(/[-/]/);
+  if (parts.length >= 2) {
+    const y1 = parts[0].trim().slice(-2);
+    const y2 = parts[1].trim().slice(-2);
+    return `${y1}${y2}`;
+  }
+  return '2627';
+}
 
 function filterStudentData(list = [], searchVal = '') {
   if (!searchVal || !searchVal.trim()) return list;
@@ -115,7 +159,7 @@ function updateStatsStudent() {
 }
 
 /**
- * 💡 Render Student Table Grid Rows with Precise Column Alignment
+ * 💡 Render Student Table Grid Rows with Integer NO & Auto Gender Display
  * Column Order: NO | STU STATUS | DATE | FY | FYID | NAME | CLASS | CATEGORY | PROMO | STATUS | GENDER | TRANSFER DATE | PARENTS NAME | PHONE NO | ADDRESS | ACTION
  */
 function renderStudentTable() {
@@ -158,12 +202,17 @@ function renderStudentTable() {
     const stuStatusVal = row.stu_status || row.stuStatus || "New Student";
     const parentsNameVal = row.parents_name || row.parentsName || "-";
     const phoneNoVal = row.phone_no || row.phoneNo || "-";
-    const genderVal = row.gender || "Male";
-    const displayNo = row.no || (idx + 1);
+
+    // 💡 Gender Auto Detection from Student Name
+    const detectedGender = row.gender || autoDetectGender(row.name);
+
+    // 💡 Integer NO (Ensure integer format 1, 2, 3 - No decimals!)
+    const rawNo = row.no !== undefined && row.no !== null && row.no !== "" ? row.no : (idx + 1);
+    const displayNo = parseInt(rawNo, 10) || (idx + 1);
 
     return `
       <tr class="hover:bg-slate-800/20 text-slate-300">
-        <td class="text-center font-mono font-semibold text-slate-500">${displayNo}</td>
+        <td class="text-center font-mono font-bold text-slate-400">${displayNo}</td>
         <td><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">${escapeHtml(stuStatusVal)}</span></td>
         <td class="font-mono text-xs">${escapeHtml(displayDate || '-')}</td>
         <td class="font-mono font-bold text-indigo-300">${escapeHtml(row.fy || '-')}</td>
@@ -177,7 +226,7 @@ function renderStudentTable() {
             ${escapeHtml(finalStatus)}
           </span>
         </td>
-        <td>${escapeHtml(genderVal)}</td>
+        <td class="font-semibold">${escapeHtml(detectedGender)}</td>
         <td class="font-mono text-xs">${escapeHtml(displayTransDate || '-')}</td>
         <td>${escapeHtml(parentsNameVal)}</td>
         <td class="font-mono text-xs whitespace-normal max-w-xs">${escapeHtml(phoneNoVal)}</td>
@@ -271,7 +320,7 @@ function onStudentStatusChange() {
 }
 
 /**
- * 💡 Old Student Lookup Logic with Auto-Class Promotion
+ * 💡 Old Student Lookup Logic with Auto-Class Promotion & History Pre-fill
  */
 function onOldStudentIdLookup() {
   clearTimeout(lookupTimeoutStudent);
@@ -286,7 +335,7 @@ function onOldStudentIdLookup() {
     // 1. Search locally in activeData first
     let match = (window.StudentState.activeData || []).find(r => 
       String(r.student_id || r.studentId || r.id || '') === lookupId ||
-      String(r.fyid || '').toLowerCase().endsWith(`-stu-${lookupId.padStart(3, '0')}`)
+      String(r.fyid || '').toLowerCase().endsWith(`-stu-${lookupId.padStart(4, '0')}`)
     );
 
     // 2. If not found locally, query Server API
@@ -305,9 +354,6 @@ function onOldStudentIdLookup() {
     if (match) {
       const nameEl = document.getElementById('stu-name');
       if (nameEl) nameEl.value = match.name || "";
-
-      const genderEl = document.getElementById('stu-gender');
-      if (genderEl) genderEl.value = match.gender || "Male";
 
       // 💡 Auto Class Promotion Logic
       const oldClass = match.class || "Pre School";
@@ -341,7 +387,7 @@ function onOldStudentIdLookup() {
 }
 
 /**
- * 💡 Save / Update Student Profile with Auto-Generated FYID & Auto-Status Logic
+ * 💡 Save / Update Student Profile with 4-Digit FYID Padding & Gender Auto-Detect
  */
 async function saveStudentForm(e) {
   if (e && e.preventDefault) e.preventDefault();
@@ -356,11 +402,13 @@ async function saveStudentForm(e) {
   const fyVal = document.getElementById('stu-fy')?.value || "2026-2027";
   const nameVal = document.getElementById('stu-name')?.value || "";
 
-  // 💡 Auto Generate FYID & FYID Name (e.g. 2627-STU-001)
-  const fyShort = fyVal.replace(/[^0-9]/g, '').slice(2, 6) || "2627";
+  // 💡 Auto Detect Gender from Student Name
+  const detectedGender = autoDetectGender(nameVal);
+
+  // 💡 Compute 4-Digit FY Short Code (e.g. "2026-2027" -> "2627")
+  const fyShort = getFyShortCode(fyVal);
   const inputStudentId = document.getElementById('stu-id-input')?.value.trim();
   const hiddenStudentId = document.getElementById('stu-id')?.value.trim();
-  
   const studentIdVal = inputStudentId || hiddenStudentId || "";
 
   const entry = {
@@ -371,7 +419,7 @@ async function saveStudentForm(e) {
     fy: fyVal,
     fyShort: fyShort,
     name: nameVal,
-    gender: document.getElementById('stu-gender')?.value || "Male",
+    gender: detectedGender,
     class: document.getElementById('stu-class')?.value || "",
     category: document.getElementById('stu-category')?.value || "",
     promo: document.getElementById('stu-promo')?.value || "Original price",
@@ -465,9 +513,6 @@ function editStudentEntry(uniqueId) {
   const nameEl = document.getElementById('stu-name');
   if (nameEl) nameEl.value = row.name || "";
 
-  const genderEl = document.getElementById('stu-gender');
-  if (genderEl) genderEl.value = row.gender || "Male";
-
   const classEl = document.getElementById('stu-class');
   if (classEl) classEl.value = row.class || "";
 
@@ -476,7 +521,7 @@ function editStudentEntry(uniqueId) {
 
   const promoEl = document.getElementById('stu-promo');
   if (promoEl) promoEl.value = row.promo || "Original price";
-  
+
   const transDateEl = document.getElementById('stu-transferdate');
   if (transDateEl) transDateEl.value = row.transfer_date || row.transferDate || "";
 
@@ -525,7 +570,11 @@ function exportToCSVStudent() {
     let isTransformed = !!transDate;
     let stat = isTransformed ? 'Inactive' : (row.status || 'Active');
 
-    csv += `${row.no || (idx + 1)},${row.stu_status || row.stuStatus || ''},${row.date || ''},${row.fy || ''},${row.student_id || row.id || ''},${row.fyid || ''},${name},${cls},${cat},${row.promo || ''},${stat},${row.gender || 'Male'},${transDate},${parents},${row.phone_no || row.phoneNo || ''},${addr},${row.uniqueid || row.uniqueId || ''}\n`;
+    const rawNo = row.no !== undefined && row.no !== null && row.no !== "" ? row.no : (idx + 1);
+    const displayNo = parseInt(rawNo, 10) || (idx + 1);
+    const genderVal = row.gender || autoDetectGender(row.name);
+
+    csv += `${displayNo},${row.stu_status || row.stuStatus || ''},${row.date || ''},${row.fy || ''},${row.student_id || row.id || ''},${row.fyid || ''},${name},${cls},${cat},${row.promo || ''},${stat},${genderVal},${transDate},${parents},${row.phone_no || row.phoneNo || ''},${addr},${row.uniqueid || row.uniqueId || ''}\n`;
   });
 
   const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
