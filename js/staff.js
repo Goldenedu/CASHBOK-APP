@@ -1,7 +1,7 @@
 /**
  * GOLDEN ERP SYSTEM - STAFF MODULE (D1 DATABASE COMPATIBLE)
  * File: js/staff.js
- * 💡 Features: D1 Compatible Staff Directory, Edit/Delete Fix, Double Submit Protection & Live KPI Stats
+ * 💡 Features: Live Cloudflare D1 Salary Grade Matrix Sync, Auto Basic Amt Fill, Live Net Salary Calculator & Integer NO Fix
  */
 
 var gStaffCategory = 'Full Time'; // 'Full Time' or 'Part Time'
@@ -157,7 +157,6 @@ async function loadStaffData(useCache = false) {
     if (res && res.success) {
       gStaffData = res.data || [];
       
-      // 💡 Calculate Live Staff KPIs
       let actCount = 0;
       let maleCount = 0;
       let femaleCount = 0;
@@ -244,8 +243,11 @@ function renderStaffTable(rawData) {
       const joinDate = item.join_date || item.joinDate || '';
       const staffIdName = item.staff_idname || item.staffIdName || item.name || '';
       const salaryGrade = item.salary_grade || item.salaryGrade || 'Non';
+      
+      // 💡 ဒသမများ ဖြုတ်ပစ်ရန် parseInt ပြုလုပ်ခြင်း
       const displayNo = parseInt(item.no || (idx + 1), 10);
-      const workingDays = item.working_days ?? item.workingDays ?? 26;
+      const workingDays = parseInt(item.working_days ?? item.workingDays ?? 26, 10);
+      
       const basicAmt = item.basic_amt ?? item.basicAmt ?? 0;
       const extraAmt = item.extra_amt ?? item.extraAmt ?? 0;
       const totalSalary = item.total_salary ?? item.totalSalary ?? 0;
@@ -261,7 +263,7 @@ function renderStaffTable(rawData) {
 
       return `
       <tr class="hover:bg-slate-800/40 transition">
-        <td class="text-center text-slate-400 py-3">${item.no || (idx + 1)}</td>
+        <td class="text-center text-slate-400 py-3">${displayNo}</td>
         <td class="font-mono text-slate-300 py-3">${joinDate}</td>
         <td class="font-bold text-white py-3">${staffIdName}</td>
         <td class="text-slate-300 py-3">${item.education || ''}</td>
@@ -301,10 +303,11 @@ function renderStaffTable(rawData) {
       const nrcNo = item.nrc_no || item.nrcNo || '';
       const bankAccount = item.bank_account || item.bankAccount || '';
       const phoneNo = item.phone_no || item.phoneNo || '';
+      const displayNo = parseInt(item.no || (idx + 1), 10);
 
       return `
       <tr class="hover:bg-slate-800/40 transition">
-        <td class="text-center text-slate-400 py-3">${item.no || (idx + 1)}</td>
+        <td class="text-center text-slate-400 py-3">${displayNo}</td>
         <td class="font-mono text-slate-300 py-3">${joinDate}</td>
         <td class="font-bold text-white py-3">${staffIdName}</td>
         <td class="text-slate-300 py-3">${item.education || ''}</td>
@@ -519,12 +522,11 @@ async function editStaffEntry(uniqueId) {
 }
 
 /**
- * 💡 SAVE STAFF FORM (Prevent Double Submit on Enter Key)
+ * 💡 SAVE STAFF FORM
  */
 async function saveStaffForm(event) {
-  if (event && event.preventDefault) event.preventDefault();
+  event.preventDefault();
 
-  // 🛡️ Double submit guard
   if (isStaffSubmitting) return;
   isStaffSubmitting = true;
 
@@ -624,7 +626,7 @@ function exportToCSVStaff() {
   }
   let csv = "NO,JOIN_DATE,STAFF_IDNAME,POSITION,PHONE,STATUS\n";
   gStaffData.forEach(r => {
-    csv += `"${r.no}","${r.join_date || r.joinDate}","${r.staff_idname || r.staffIdName || r.name}","${r.position}","${r.phone_no || r.phoneNo}","${r.status}"\n`;
+    csv += `"${parseInt(r.no, 10) || ''}","${r.join_date || r.joinDate}","${r.staff_idname || r.staffIdName || r.name}","${r.position}","${r.phone_no || r.phoneNo}","${r.status}"\n`;
   });
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = window.URL.createObjectURL(blob);
