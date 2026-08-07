@@ -1,7 +1,7 @@
 /**
- * GOLDEN ERP SYSTEM - STUDENT LIST & DEMOGRAPHICS MODULE
+ * GOLDEN ERP SYSTEM - STUDENT LIST & DEMOGRAPHICS MODULE (D1 DATABASE COMPATIBLE)
  * File: js/student.js
- * 💡 Student Directory with Strict Search Criteria (Name, FYID, ID Only) & Formal Tone
+ * 💡 Student Directory with Precise Column Mapping & Multi-Format ID Resolution
  */
 
 window.StudentState = {
@@ -15,27 +15,19 @@ window.StudentState = {
 
 var searchTimeoutStudent = null;
 
-/**
- * 💡 Strict Search Filter Function for Student Master List
- * Searches strictly by: Student Name (NAME / FYIDNAME), FYID, Student ID.
- * Excluded: Phone, NRC, Parents Name, Address, Remark.
- */
 function filterStudentData(list = [], searchVal = '') {
   if (!searchVal || !searchVal.trim()) return list;
   const q = searchVal.trim().toLowerCase();
 
   return list.filter(row => {
-    const nameMatch = String(row.name || '').toLowerCase().includes(q) || String(row.fyidName || '').toLowerCase().includes(q);
+    const nameMatch = String(row.name || '').toLowerCase().includes(q) || String(row.fyid_name || row.fyidName || '').toLowerCase().includes(q);
     const fyidMatch = String(row.fyid || '').toLowerCase().includes(q);
-    const idMatch = String(row.id || '').toLowerCase().includes(q);
+    const idMatch = String(row.student_id || row.studentId || row.id || '').toLowerCase().includes(q);
 
     return nameMatch || fyidMatch || idMatch;
   });
 }
 
-/**
- * 💡 Load Student List Data
- */
 async function loadStudentData(isSilent = false) {
   if (!isSilent && typeof toggleLoading === 'function') toggleLoading(true);
 
@@ -65,9 +57,6 @@ async function loadStudentData(isSilent = false) {
   }
 }
 
-/**
- * 💡 Update Stats Cards
- */
 function updateStatsStudent() {
   const stats = window.StudentState.stats;
 
@@ -85,8 +74,8 @@ function updateStatsStudent() {
 }
 
 /**
- * 💡 Render Student Table Grid Rows with Precise Search Filtering & FY Sequence NO
- * 🎯 Criteria: Search ONLY by Student Name (NAME), FYIDNAME, FYID, ID
+ * 💡 Render Student Table Grid Rows with Precise Column Alignment
+ * Column Order: NO | STU STATUS | DATE | FY | FYID | NAME | CLASS | CATEGORY | PROMO | STATUS | GENDER | TRANSFER DATE | PARENTS NAME | PHONE NO | ADDRESS | ACTION
  */
 function renderStudentTable() {
   const tableBody = document.getElementById('student-table-body');
@@ -96,7 +85,6 @@ function renderStudentTable() {
   const searchInput = document.getElementById('student-search');
   const searchVal = searchInput ? searchInput.value.trim() : (window.StudentState.searchVal || '');
 
-  // 💡 Client-side Strict Multi-Column Filter (NAME, FYIDNAME, FYID, ID Only)
   const filteredData = filterStudentData(rawData, searchVal);
 
   if (!filteredData || filteredData.length === 0) {
@@ -113,25 +101,30 @@ function renderStudentTable() {
       if (parts.length === 3) displayDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
     }
 
-    let displayTransDate = row.transferDate || "";
+    const transDateVal = row.transfer_date || row.transferDate || "";
+    let displayTransDate = transDateVal;
     if (displayTransDate) {
       let parts = displayTransDate.split('-');
       if (parts.length === 3) displayTransDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
     }
 
     const isInactive = (row.status || "").toLowerCase() === "inactive";
+    const uniqueIdVal = row.uniqueid || row.uniqueId || "";
+    const stuStatusVal = row.stu_status || row.stuStatus || "-";
+    const parentsNameVal = row.parents_name || row.parentsName || "-";
+    const phoneNoVal = row.phone_no || row.phoneNo || "-";
 
     return `
       <tr class="hover:bg-slate-800/20 text-slate-300">
         <td class="text-center font-mono font-semibold text-slate-500">${row.no || '-'}</td>
-        <td class="font-mono text-xs">${escapeHtml(displayDate)}</td>
+        <td><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">${escapeHtml(stuStatusVal)}</span></td>
+        <td class="font-mono text-xs">${escapeHtml(displayDate || '-')}</td>
         <td class="font-mono font-bold text-indigo-300">${escapeHtml(row.fy || '-')}</td>
         <td class="font-bold text-slate-200 font-mono">${escapeHtml(row.fyid || '-')}</td>
         <td class="font-bold text-slate-100">${escapeHtml(row.name || '-')}</td>
         <td>${escapeHtml(row.class || '-')}</td>
         <td><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400">${escapeHtml(row.category || '-')}</span></td>
         <td>${escapeHtml(row.promo || '-')}</td>
-        <td>${escapeHtml(row.stuStatus || '-')}</td>
         <td>
           <span class="px-2 py-0.5 rounded text-[10px] font-bold ${!isInactive ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}">
             ${escapeHtml(row.status || 'Active')}
@@ -139,15 +132,15 @@ function renderStudentTable() {
         </td>
         <td>${escapeHtml(row.gender || '-')}</td>
         <td class="font-mono text-xs">${escapeHtml(displayTransDate || '-')}</td>
-        <td>${escapeHtml(row.parentsName || '-')}</td>
-        <td class="font-mono text-xs">${escapeHtml(row.phoneNo || '-')}</td>
+        <td>${escapeHtml(parentsNameVal)}</td>
+        <td class="font-mono text-xs">${escapeHtml(phoneNoVal)}</td>
         <td class="max-w-xs truncate" title="${escapeHtml(row.address || '')}">${escapeHtml(row.address || '-')}</td>
         <td class="right-0 sticky bg-[#0c1322] border-l border-slate-800 shadow-lg text-center">
           <div class="flex items-center justify-center gap-3 ${isViewer ? 'hidden' : ''}">
-            <button onclick="editStudentEntry('${row.uniqueId}')" class="text-indigo-400 hover:text-indigo-300 transition" title="Edit Profile">
+            <button onclick="editStudentEntry('${uniqueIdVal}')" class="text-indigo-400 hover:text-indigo-300 transition" title="Edit Profile">
               <i class="fa-solid fa-pen-to-square"></i>
             </button>
-            <button onclick="deleteStudentEntry('${row.uniqueId}')" class="text-rose-400 hover:text-rose-300 transition" title="Delete Profile">
+            <button onclick="deleteStudentEntry('${uniqueIdVal}')" class="text-rose-400 hover:text-rose-300 transition" title="Delete Profile">
               <i class="fa-solid fa-trash"></i>
             </button>
           </div>
@@ -187,9 +180,6 @@ function onSearchInputStudent() {
   }, 200);
 }
 
-/**
- * 💡 Generate Dynamic FY Dropdown
- */
 function populateDynamicFYDropdownStudent(selectId) {
   const select = document.getElementById(selectId);
   if (!select) return;
@@ -210,9 +200,6 @@ function populateDynamicFYDropdownStudent(selectId) {
   `;
 }
 
-/**
- * 💡 Save / Update Student Profile
- */
 async function saveStudentForm(e) {
   if (e && e.preventDefault) e.preventDefault();
   closeStudentModal();
@@ -286,30 +273,31 @@ function closeStudentModal() {
 }
 
 /**
- * 💡 Edit Student Profile
+ * 💡 Edit Student Profile (Handles both D1 snake_case & camelCase uniqueid)
  */
 function editStudentEntry(uniqueId) {
-  const row = window.StudentState.activeData.find(item => item.uniqueId === uniqueId);
+  const row = window.StudentState.activeData.find(item => item.uniqueid === uniqueId || item.uniqueId === uniqueId);
   if (!row) {
     if (typeof showToast === 'function') showToast("ERROR", "မူရင်း အချက်အလက် ရှာမတွေ့ပါ။");
     return;
   }
 
   openAddModalStudent();
-  const stuStatusEl = document.getElementById('stu-stustatus');
-  if (stuStatusEl) stuStatusEl.value = row.stuStatus || "New Student";
-  
+
   const uidEl = document.getElementById('stu-uniqueId');
-  if (uidEl) uidEl.value = row.uniqueId;
+  if (uidEl) uidEl.value = row.uniqueid || row.uniqueId || "";
 
   const idEl = document.getElementById('stu-id');
-  if (idEl) idEl.value = row.id || "";
+  if (idEl) idEl.value = row.student_id || row.studentId || row.id || "";
 
   const dateEl = document.getElementById('stu-date');
   if (dateEl) dateEl.value = row.date || "";
 
   const fyEl = document.getElementById('stu-fy');
   if (fyEl) fyEl.value = row.fy || "";
+
+  const stuStatusEl = document.getElementById('stu-stustatus');
+  if (stuStatusEl) stuStatusEl.value = row.stu_status || row.stuStatus || "New Student";
 
   const nameEl = document.getElementById('stu-name');
   if (nameEl) nameEl.value = row.name || "";
@@ -324,21 +312,18 @@ function editStudentEntry(uniqueId) {
   if (promoEl) promoEl.value = row.promo || "";
   
   const transDateEl = document.getElementById('stu-transferdate');
-  if (transDateEl) transDateEl.value = row.transferDate || "";
+  if (transDateEl) transDateEl.value = row.transfer_date || row.transferDate || "";
 
   const parentsEl = document.getElementById('stu-parents');
-  if (parentsEl) parentsEl.value = row.parentsName || "";
+  if (parentsEl) parentsEl.value = row.parents_name || row.parentsName || "";
 
   const phoneEl = document.getElementById('stu-phone');
-  if (phoneEl) phoneEl.value = row.phoneNo || "";
+  if (phoneEl) phoneEl.value = row.phone_no || row.phoneNo || "";
 
   const addrEl = document.getElementById('stu-address');
   if (addrEl) addrEl.value = row.address || "";
 }
 
-/**
- * 💡 Delete Student Entry
- */
 async function deleteStudentEntry(uniqueId) {
   if (confirm("ဤ ကျောင်းသား မှတ်တမ်းအား အပြီးတိုင် ဖျက်သိမ်းလိုပါသလား။")) {
     if (typeof showToast === 'function') showToast("SUCCESS", "ကျောင်းသား စာရင်း ဖျက်သိမ်းနေပါသည်...");
@@ -356,9 +341,6 @@ async function deleteStudentEntry(uniqueId) {
   }
 }
 
-/**
- * 💡 CSV Export Engine
- */
 function exportToCSVStudent() {
   const data = window.StudentState.activeData;
   if (!data || data.length === 0) {
@@ -366,15 +348,15 @@ function exportToCSVStudent() {
     return;
   }
 
-  let csv = "NO,DATE,FY,ID,FYID,NAME,CLASS,CATEGORY,PROMO,STU STATUS,STATUS,GENDER,TRANSFER DATE,PARENTS NAME,PHONE NO,ADDRESS,UNIQUEID\n";
+  let csv = "NO,STU STATUS,DATE,FY,ID,FYID,NAME,CLASS,CATEGORY,PROMO,STATUS,GENDER,TRANSFER DATE,PARENTS NAME,PHONE NO,ADDRESS,UNIQUEID\n";
   data.forEach(row => {
     let name = `"${(row.name || '').replace(/"/g, '""')}"`;
-    let parents = `"${(row.parentsName || '').replace(/"/g, '""')}"`;
+    let parents = `"${(row.parents_name || row.parentsName || '').replace(/"/g, '""')}"`;
     let addr = `"${(row.address || '').replace(/"/g, '""')}"`;
     let cls = `"${(row.class || '').replace(/"/g, '""')}"`;
     let cat = `"${(row.category || '').replace(/"/g, '""')}"`;
 
-    csv += `${row.no || ''},${row.date || ''},${row.fy || ''},${row.id || ''},${row.fyid || ''},${name},${cls},${cat},${row.promo || ''},${row.stuStatus || ''},${row.status || ''},${row.gender || ''},${row.transferDate || ''},${parents},${row.phoneNo || ''},${addr},${row.uniqueId || ''}\n`;
+    csv += `${row.no || ''},${row.stu_status || row.stuStatus || ''},${row.date || ''},${row.fy || ''},${row.student_id || row.id || ''},${row.fyid || ''},${name},${cls},${cat},${row.promo || ''},${row.status || ''},${row.gender || ''},${row.transfer_date || row.transferDate || ''},${parents},${row.phone_no || row.phoneNo || ''},${addr},${row.uniqueid || row.uniqueId || ''}\n`;
   });
 
   const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
