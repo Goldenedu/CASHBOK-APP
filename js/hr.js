@@ -1,7 +1,7 @@
 /**
  * GOLDEN ERP SYSTEM - HR PAYROLL EXP BOOK CONTROLLER (D1 DATABASE EDITION)
- * File: js/hr.js
- * 💡 Features: 0ms Instant Modal Opening, Fixed totalSalaryVal Reference & D1 Compatible Auto-Fill Engine
+ * File: js/hr.js 
+ * 💡 Features: D1 Compatible Staff ID Lookup, Auto Credit/Bonus/Fund Auto-Fill & Full Time Staff Deduction Engine
  */
 
 var gHrSubTab = 'payroll'; // 'payroll' | 'fulltime' | 'parttime'
@@ -15,10 +15,6 @@ var gHrStaffFT = []; // Full-Time Staff Cache
 var gHrStaffPT = []; // Part-Time Staff Cache
 var gHrStaffCache = []; // Fallback Cache
 
-/**
- * 💡 Switch Sub-Tabs in HR Module
- * @param {string} subTab 'payroll' | 'fulltime' | 'parttime'
- */
 function switchHrSubTab(subTab = 'payroll') {
   gHrSubTab = subTab;
 
@@ -48,9 +44,6 @@ function switchHrSubTab(subTab = 'payroll') {
   }
 }
 
-/**
- * 💡 Load HR Payroll Exp Book Data from Cloudflare D1
- */
 async function loadHrPayrollData(useCache = true) {
   try {
     if (typeof toggleLoading === 'function') toggleLoading(true);
@@ -63,7 +56,6 @@ async function loadHrPayrollData(useCache = true) {
     if (response && response.success) {
       gHrPayrollData = response.data || [];
       
-      // Calculate Stats
       let totInc = 0;
       let totExp = 0;
       gHrPayrollData.forEach(r => {
@@ -85,9 +77,6 @@ async function loadHrPayrollData(useCache = true) {
   }
 }
 
-/**
- * 💡 Preload Staff Data for Fast ID Lookup
- */
 async function preloadStaffCacheForPayroll() {
   try {
     const resFT = await callApi('getStaffData', { category: 'Full Time', page: 1, limit: 500, forceRefresh: true }, 'GET');
@@ -125,9 +114,6 @@ async function ensureStaffCacheForCategory(isPartTime) {
   }
 }
 
-/**
- * 💡 Render Stats KPI Cards
- */
 function renderHrPayrollStats(stats) {
   const elInc = document.getElementById('hr-pay-total-income');
   const elExp = document.getElementById('hr-pay-total-expense');
@@ -140,9 +126,6 @@ function renderHrPayrollStats(stats) {
   if (elCount) elCount.textContent = gHrPayrollData.length.toLocaleString('en-US');
 }
 
-/**
- * 💡 Filter & Search Payroll Data
- */
 function applyHrPayrollSearchAndRender() {
   const searchInput = document.getElementById('hr-payroll-search');
   const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
@@ -181,9 +164,6 @@ function clearDateFilterHrPayroll() {
   applyHrPayrollSearchAndRender();
 }
 
-/**
- * 💡 Render Table Grid with D1 Compatibility
- */
 function renderHrPayrollTable() {
   const tbody = document.getElementById('hr-payroll-table-body');
   if (!tbody) return;
@@ -263,10 +243,9 @@ function escapeHtmlHr(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-// ============================================================================
-// 💡 CRITICAL AUTO-FILL ENGINE: ON STAFF ID / CATEGORY CHANGE (D1 COMPATIBLE)
-// ============================================================================
-
+/**
+ * 💡 CRITICAL AUTO-FILL ENGINE: ON STAFF ID / CATEGORY CHANGE
+ */
 async function onStaffIdChangePayroll() {
   const staffIdInput = document.getElementById('hr-pay-staff-id');
   const categorySelect = document.getElementById('hr-pay-category');
@@ -305,7 +284,6 @@ async function onStaffIdChangePayroll() {
   const targetIdNum = parseInt(rawStaffId, 10);
   const prefixKey = isPartTime ? 'pid' : 'fid';
 
-  // 💡 Staff ID Matching with D1 Field Names (staff_id, staff_idname, name)
   const matchedStaff = (targetStaffList || []).find(s => {
     const sId = parseInt(s.staff_id || s.staffId || s.id || s.fid || s.pid || 0, 10);
     const sName = String(s.staff_idname || s.staffIdName || s.name || '').toLowerCase();
@@ -329,21 +307,19 @@ async function onStaffIdChangePayroll() {
   const fallbackMY = `${months[now.getMonth()]}-${String(now.getFullYear()).slice(-2)}`;
   const myStr = !isNaN(dObj.getTime()) ? `${months[dObj.getMonth()]}-${String(dObj.getFullYear()).slice(-2)}` : fallbackMY;
 
-  // 💡 Calculate Values with D1 Field Name Compatibility
   let creditVal = 0;
   let bonusFieldVal = 0;
   let fundFieldVal = 0;
 
-  // 🔧 FIXED: Declared totalSalaryVal properly to fix Uncaught ReferenceError
+  // 💡 TOTAL SALARY Value Extraction
   const totalSalaryVal = Number(matchedStaff.total_salary ?? matchedStaff.totalSalary ?? 0);
-  const netSalary = Number(matchedStaff.total_net_amt ?? matchedStaff.totalNetAmt ?? totalSalaryVal);
   const bonusAmt = Number(matchedStaff.bonus ?? 0);
   const fundAmt = Number(matchedStaff.fund ?? 0);
   const unpaidBonus = Number(matchedStaff.unpaid_bonus ?? matchedStaff.unpaidBonus ?? 0);
   const unpaidFund = Number(matchedStaff.unpaid_fund ?? matchedStaff.unpaidFund ?? 0);
 
   if (category === 'Full Time Salary' || category === 'Part Time Salary') {
-    creditVal = totalSalaryVal; // ✅ Bound to TOTAL SALARY
+    creditVal = totalSalaryVal; // ✅ TOTAL SALARY Bound
     bonusFieldVal = bonusAmt;
     fundFieldVal = fundAmt;
   } else if (category === 'Full Time Bonus' || category === 'Part Time Bonus') {
@@ -354,12 +330,10 @@ async function onStaffIdChangePayroll() {
     creditVal = fundFieldVal;
   }
 
-  // Populate Input Fields
   if (elCredit) elCredit.value = creditVal;
   if (elBonus) elBonus.value = bonusFieldVal;
   if (elFund) elFund.value = fundFieldVal;
 
-  // Auto Display Name Generation
   const defaultPrefix = isPartTime ? 'PID' : 'FID';
   const staffNameOnly = matchedStaff.name || '';
   const defaultIdStr = `${defaultPrefix} ${String(matchedStaff.staff_id || matchedStaff.staffId || matchedStaff.id || targetIdNum).padStart(3, '0')} ${staffNameOnly}`;
@@ -368,9 +342,6 @@ async function onStaffIdChangePayroll() {
   if (elDesc) elDesc.value = `[${staffDisplayName}, ${category} ${myStr}]`;
 }
 
-/**
- * 💡 Open Add Modal (0ms Instant Opening)
- */
 function openAddModalHrPayroll() {
   const form = document.getElementById('hr-payroll-form');
   if (form) form.reset();
@@ -390,11 +361,9 @@ function openAddModalHrPayroll() {
   const title = document.getElementById('hr-payroll-form-title');
   if (title) title.textContent = 'Add HR Payroll Entry';
 
-  // 💡 INSTANT OPEN: Show modal immediately first (0ms delay)
   const modal = document.getElementById('hr-payroll-modal');
   if (modal) modal.classList.remove('hidden');
 
-  // Preload staff cache in background non-blocking
   preloadStaffCacheForPayroll();
 }
 
@@ -454,9 +423,6 @@ async function saveHrPayrollForm(e) {
   }
 }
 
-/**
- * 💡 Edit Entry
- */
 function editHrPayrollEntry(uniqueId) {
   const row = gHrPayrollData.find(item => (item.uniqueid === uniqueId || item.uniqueId === uniqueId));
   if (!row) {
@@ -503,9 +469,6 @@ function editHrPayrollEntry(uniqueId) {
   if (title) title.textContent = 'Edit HR Payroll Entry';
 }
 
-/**
- * 💡 Delete Entry
- */
 async function deleteHrPayrollEntry(uniqueId) {
   if (!confirm("ဤ စာရင်းအား အပြီးတိုင် ဖျက်သိမ်းလိုပါသလား။")) return;
 
@@ -527,9 +490,6 @@ async function deleteHrPayrollEntry(uniqueId) {
   }
 }
 
-/**
- * 💡 Print Payslip Engine
- */
 function printPayslip(uniqueId) {
   const row = gHrPayrollData.find(item => (item.uniqueid === uniqueId || item.uniqueId === uniqueId));
   if (!row) return;
@@ -572,9 +532,6 @@ function printPayslip(uniqueId) {
   window.print();
 }
 
-/**
- * 💡 CSV Export Engine
- */
 function exportToCSVHrPayroll() {
   if (!gHrPayrollData || gHrPayrollData.length === 0) {
     if (typeof showToast === 'function') showToast("ERROR", "ထုတ်ယူရန် မည်သည့် စာရင်းမျှ မရှိပါ။");
