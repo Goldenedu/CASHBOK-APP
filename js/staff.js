@@ -1,7 +1,7 @@
 /**
  * GOLDEN ERP SYSTEM - STAFF MODULE (D1 DATABASE COMPATIBLE)
  * File: js/staff.js
- * 💡 Features: Live Cloudflare D1 Salary Grade Matrix Sync, Auto Basic Amt Fill & Live Net Salary Calculator
+ * 💡 Features: D1 Compatible Staff Directory, Edit/Delete Fix, Double Submit Protection & Live KPI Stats
  */
 
 var gStaffCategory = 'Full Time'; // 'Full Time' or 'Part Time'
@@ -9,23 +9,19 @@ var gStaffPage = 1;
 var gStaffLimit = 30;
 var gStaffSearch = '';
 var gStaffData = [];
+var isStaffSubmitting = false; // Double submit protection flag
 
-// 💡 D1 Database (salary_grade_matrix) မှ ဖတ်ယူမည့် Dynamic Payroll Settings Cache
 var gPayrollSettings = {
   grades: {},
   bonus: 0,
   fundRate: 0.05
 };
 
-/**
- * 💡 Fetch Payroll Settings Directly from Cloudflare D1 Database
- */
 async function fetchPayrollSettings() {
   try {
     const res = await callApi('getPayrollSettings', { forceRefresh: true }, 'GET');
     const d = (res && res.data) ? res.data : null;
     if (d) {
-      // D1 Database Field Names: grade_a, grade_b ... bonus_rate, fund_rate
       const gradesMap = {
         'GRADE A': Number(d.grade_a ?? d.gradeA ?? 0),
         'GRADE B': Number(d.grade_b ?? d.gradeB ?? 0),
@@ -53,9 +49,6 @@ async function fetchPayrollSettings() {
   return gPayrollSettings;
 }
 
-/**
- * 💡 Strict Search Filter Function for Staff Directory
- */
 function filterStaffData(list = [], searchVal = '') {
   if (!searchVal || !searchVal.trim()) return list;
   const q = searchVal.trim().toLowerCase();
@@ -163,7 +156,28 @@ async function loadStaffData(useCache = false) {
 
     if (res && res.success) {
       gStaffData = res.data || [];
-      renderStaffKpis(res.stats || {});
+      
+      // 💡 Calculate Live Staff KPIs
+      let actCount = 0;
+      let maleCount = 0;
+      let femaleCount = 0;
+      let netPayroll = 0;
+
+      gStaffData.forEach(item => {
+        if ((item.status || 'Active') === 'Active') actCount++;
+        const g = (item.gender || 'Male').toLowerCase();
+        if (g === 'male' || g === 'ကျား') maleCount++;
+        else if (g === 'female' || g === 'မ') femaleCount++;
+        netPayroll += Number(item.total_net_amt ?? item.totalNetAmt ?? item.total_salary ?? item.totalSalary ?? 0);
+      });
+
+      renderStaffKpis({
+        activeCount: actCount,
+        totalNetAmt: netPayroll,
+        maleCount: maleCount,
+        femaleCount: femaleCount
+      });
+
       renderStaffTable(gStaffData);
       renderStaffPagination(res.totalRows || gStaffData.length || 0);
     } else {
@@ -342,9 +356,6 @@ function onSearchInputStaff() {
   }, 200);
 }
 
-/**
- * 💡 SALARY GRADE DROPDOWN RENDERER (Uses Live D1 Settings)
- */
 function renderGradeDropdownOptions(selectedValue = 'Non') {
   const gradeSelect = document.getElementById('staff-grade');
   if (!gradeSelect) return;
@@ -364,24 +375,16 @@ function renderGradeDropdownOptions(selectedValue = 'Non') {
   gradeSelect.value = currentVal;
 }
 
-/**
- * 💡 Dynamic Dropdown Population (D1 Database Compatible)
- */
 async function populateDropdownsStaff(selectedValue = 'Non') {
-  // 1. Fetch live settings directly from D1 Database
   await fetchPayrollSettings();
-
-  // 2. Render Grade Dropdown from D1 Data
   renderGradeDropdownOptions(selectedValue);
 
-  // 3. Education Dropdown
   const eduSelect = document.getElementById('staff-education');
   if (eduSelect) {
     const edus = window.DROPDOWNS?.staffCommon?.education || ["Non", "Phd", "Master", "Degree", "High Graduate", "Middle", "Primary", "High School"];
     eduSelect.innerHTML = edus.map(e => `<option value="${e}">${e}</option>`).join('');
   }
 
-  // 4. Position Dropdown
   const posSelect = document.getElementById('staff-position');
   if (posSelect) {
     let positions = [];
@@ -394,9 +397,6 @@ async function populateDropdownsStaff(selectedValue = 'Non') {
   }
 }
 
-/**
- * 💡 ON SALARY GRADE CHANGE
- */
 function onSalaryGradeChangeStaff() {
   const gradeVal = document.getElementById('staff-grade')?.value || 'Non';
   const basicInput = document.getElementById('staff-basic');
@@ -473,7 +473,6 @@ async function openAddModalStaff() {
 
   if (modal) modal.classList.remove('hidden');
 
-  // Fetch directly from D1 Database and populate options
   await populateDropdownsStaff('Non');
   calculateLiveStaffSalary();
 }
@@ -519,10 +518,14 @@ async function editStaffEntry(uniqueId) {
 }
 
 /**
- * 💡 SAVE STAFF FORM
+ * 💡 SAVE STAFF FORM (Prevent Double Submit on Enter Key)
  */
 async function saveStaffForm(event) {
-  event.preventDefault();
+  if (event && event.preventDefault) event.preventDefault();
+
+  // 🛡️ Double submit guard
+  if (isStaffSubmitting) return;
+  isStaffSubmitting = true;
 
   const uid = document.getElementById('staff-uniqueId')?.value || '';
   const actionName = uid ? 'updateStaffEntry' : 'saveStaffEntry';
@@ -585,6 +588,7 @@ async function saveStaffForm(event) {
   } catch (err) {
     if (typeof showToast === 'function') showToast("ERROR", "ဆာဗာ ချိတ်ဆက်မှု အမှား: " + err.message);
   } finally {
+    isStaffSubmitting = false;
     if (typeof toggleLoading === 'function') toggleLoading(false);
   }
 }
@@ -630,7 +634,7 @@ function exportToCSVStaff() {
 }
 
 /**
- * 💡 OPEN GRADE EDIT MODAL (Reads Directly from D1 Database)
+ * 💡 OPEN GRADE EDIT MODAL
  */
 async function openGradeModal() {
   const modal = document.getElementById('grade-modal');
@@ -668,7 +672,7 @@ function closeGradeModal() {
 }
 
 /**
- * 💡 SAVE GRADE FORM (Saves To Cloudflare D1 Database & Immediately Refreshes Cache)
+ * 💡 SAVE GRADE FORM
  */
 async function saveGradeForm(event) {
   event.preventDefault();
@@ -698,7 +702,6 @@ async function saveGradeForm(event) {
       if (typeof showToast === 'function') showToast("SUCCESS", "Grade Matrix နှုန်းထားများကို D1 Database ထဲသို့ အောင်မြင်စွာ သိမ်းဆည်းပြီးပါပြီ။");
       closeGradeModal();
       
-      // D1 Database မှ တန်ဖိုးအသစ်များကို ရယူ၍ Dropdown အား ပြန်လည် Render လုပ်မည်
       await fetchPayrollSettings();
       renderGradeDropdownOptions();
     } else {
