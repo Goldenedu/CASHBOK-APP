@@ -37,7 +37,6 @@
   <div class="flex flex-col md:flex-row justify-between items-center bg-[#0c1322] border border-slate-800 p-4 rounded-xl gap-4">
     <div class="relative w-full md:w-[500px]">
       <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
-      <!-- 💡 UPDATED SEARCH PLACEHOLDER FOR STRICT CRITERIA (Student Name, FYID, Student ID) -->
       <input type="text" id="student-search" oninput="onSearchInputStudent()" placeholder="Search student name, FYID, student ID..." class="w-full pl-9 pr-4 py-2 text-xs rounded-lg bg-[#0f172a] border border-slate-800 text-white focus:outline-none focus:border-indigo-500 transition-all">
     </div>
 
@@ -113,10 +112,18 @@
       <input type="hidden" id="stu-uniqueId">
       <input type="hidden" id="stu-id">
 
-      <div class="grid grid-cols-2 gap-4">
+      <!-- 💡 ပထမတန်း: Date | Student Status | Fiscal Year (3 Columns) -->
+      <div class="grid grid-cols-3 gap-4">
         <div class="flex flex-col gap-1">
           <label class="font-bold text-slate-400 uppercase tracking-wide">Date</label>
           <input type="date" id="stu-date" required class="w-full bg-[#0f172a] border border-slate-800 text-slate-100 rounded-lg p-2.5 outline-none focus:border-indigo-500">
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="font-bold text-slate-400 uppercase tracking-wide">Student Status</label>
+          <select id="stu-stustatus" required class="w-full bg-[#0f172a] border border-slate-800 text-slate-100 rounded-lg p-2.5 outline-none focus:border-indigo-500 font-bold">
+            <option value="New Student">New Student (ကျောင်းသားသစ်)</option>
+            <option value="Old Student">Old Student (ကျောင်းသားဟောင်း)</option>
+          </select>
         </div>
         <div class="flex flex-col gap-1">
           <label class="font-bold text-slate-400 uppercase tracking-wide">Fiscal Year (ပညာသင်နှစ်)</label>
@@ -174,27 +181,18 @@
 
       <div class="grid grid-cols-2 gap-4">
         <div class="flex flex-col gap-1">
-          <label class="font-bold text-slate-400 uppercase tracking-wide">Student Status</label>
-          <select id="stu-stustatus" required class="w-full bg-[#0f172a] border border-slate-800 text-slate-100 rounded-lg p-2.5 outline-none focus:border-indigo-500">
-            <option value="New Student">New Student (ကျောင်းသားသစ်)</option>
-            <option value="Old Student">Old Student (ကျောင်းသားဟောင်း)</option>
-          </select>
-        </div>
-        <div class="flex flex-col gap-1">
           <label class="font-bold text-rose-400 uppercase tracking-wide">Transfer Date (နုတ်ထွက်ရက်)</label>
           <input type="date" id="stu-transferdate" class="w-full text-rose-400 bg-rose-500/5 border border-slate-800 rounded-lg p-2.5 outline-none focus:border-rose-500">
         </div>
-      </div>
-
-      <div class="grid grid-cols-2 gap-4">
         <div class="flex flex-col gap-1">
           <label class="font-bold text-slate-400 uppercase tracking-wide">Parents Name (မိဘအမည်)</label>
           <input type="text" id="stu-parents" placeholder="အဘ ဦးxxxx / အမိ ဒေါ်xxxx..." class="w-full bg-[#0f172a] border border-slate-800 text-slate-100 rounded-lg p-2.5 outline-none focus:border-indigo-500">
         </div>
-        <div class="flex flex-col gap-1">
-          <label class="font-bold text-slate-400 uppercase tracking-wide">Phone No (ဖုန်းနံပါတ်)</label>
-          <input type="text" id="stu-phone" placeholder="09xxxxxxxxx" class="w-full font-mono bg-[#0f172a] border border-slate-800 text-slate-100 rounded-lg p-2.5 outline-none focus:border-indigo-500">
-        </div>
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="font-bold text-slate-400 uppercase tracking-wide">Phone No (ဖုန်းနံပါတ်)</label>
+        <input type="text" id="stu-phone" placeholder="09xxxxxxxxx" class="w-full font-mono bg-[#0f172a] border border-slate-800 text-slate-100 rounded-lg p-2.5 outline-none focus:border-indigo-500">
       </div>
 
       <div class="flex flex-col gap-1">
