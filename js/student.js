@@ -1,7 +1,7 @@
 /**
  * GOLDEN ERP SYSTEM - STUDENT LIST & DEMOGRAPHICS MODULE (D1 DATABASE COMPATIBLE)
- * File: js/student.js 
- * 💡 Features: FY-Scoped KPI Analytics, Gender Auto-Detect, 4-Digit FYID Padding (2627-STU-0001), Integer NO (1, 2, 3), Old Student Lookup & Class Promotion
+ * File: js/student.js
+ * 💡 Features: FY-Scoped KPI Analytics, Synchronized Pagination, FYID Sanitizer (2627-STU-0002), Integer NO, Gender Auto-Detect & Old Student Lookup
  */
 
 window.StudentState = {
@@ -127,7 +127,6 @@ async function loadStudentData(isSilent = false) {
       populateMainFYFilterStudent();
       updateStatsStudent();
       renderStudentTable();
-      updatePaginationStudent();
     }
   } catch (err) {
     if (!isSilent && typeof toggleLoading === 'function') toggleLoading(false);
@@ -176,7 +175,6 @@ function updateStatsStudent() {
   const rawData = window.StudentState.activeData || [];
   const fyFilter = document.getElementById('student-filter-fy')?.value || window.StudentState.fyFilter || '2026-2027';
 
-  // 💡 Filter strictly by Fiscal Year (FY)
   let fyList = rawData;
   if (fyFilter && fyFilter.trim()) {
     fyList = rawData.filter(r => String(r.fy || '').trim().toLowerCase() === fyFilter.trim().toLowerCase());
@@ -209,8 +207,7 @@ function updateStatsStudent() {
 }
 
 /**
- * 💡 Render Student Table Grid Rows with FY Filtering & Integer NO
- * Column Order: NO | STU STATUS | DATE | FY | FYID | NAME | CLASS | CATEGORY | PROMO | STATUS | GENDER | TRANSFER DATE | PARENTS NAME | PHONE NO | ADDRESS | ACTION
+ * 💡 Render Student Table Grid Rows with FY Filtering, Synchronized Pagination & FYID Sanitizer
  */
 function renderStudentTable() {
   const tableBody = document.getElementById('student-table-body');
@@ -222,6 +219,9 @@ function renderStudentTable() {
   const fyFilter = document.getElementById('student-filter-fy')?.value || window.StudentState.fyFilter || '';
 
   const filteredData = filterStudentData(rawData, searchVal, fyFilter);
+
+  // 💡 Synchronize Pagination Bar with actual rendered rows
+  updatePaginationStudent(filteredData.length);
 
   if (!filteredData || filteredData.length === 0) {
     tableBody.innerHTML = `<tr><td colspan="16" class="text-center py-8 text-slate-500 font-bold">ရှာဖွေမှုနှင့် ကိုက်ညီသော ကျောင်းသား စာရင်း မရှိပါ။</td></tr>`;
@@ -255,6 +255,17 @@ function renderStudentTable() {
 
     const detectedGender = row.gender || autoDetectGender(row.name);
 
+    // 💡 FYID Display Sanitizer (Fixes old decimal artifacts e.g. "2627-STU-02.0" -> "2627-STU-0002")
+    let displayFyid = row.fyid || '-';
+    if (displayFyid.includes('.0')) {
+      displayFyid = displayFyid.replace(/\.0/g, '');
+      const parts = displayFyid.split('-STU-');
+      if (parts.length === 2) {
+        const numPart = parseInt(parts[1], 10) || 1;
+        displayFyid = `${parts[0]}-STU-${String(numPart).padStart(4, '0')}`;
+      }
+    }
+
     // 💡 Integer NO (Ensure clean integer display 1, 2, 3)
     const rawNo = row.no !== undefined && row.no !== null && row.no !== "" ? row.no : (idx + 1);
     const displayNo = parseInt(rawNo, 10) || (idx + 1);
@@ -265,7 +276,7 @@ function renderStudentTable() {
         <td><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">${escapeHtml(stuStatusVal)}</span></td>
         <td class="font-mono text-xs">${escapeHtml(displayDate || '-')}</td>
         <td class="font-mono font-bold text-indigo-300">${escapeHtml(row.fy || '-')}</td>
-        <td class="font-bold text-slate-200 font-mono">${escapeHtml(row.fyid || '-')}</td>
+        <td class="font-bold text-slate-200 font-mono">${escapeHtml(displayFyid)}</td>
         <td class="font-bold text-slate-100">${escapeHtml(row.name || '-')}</td>
         <td>${escapeHtml(row.class || '-')}</td>
         <td><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400">${escapeHtml(row.category || '-')}</span></td>
@@ -295,13 +306,17 @@ function renderStudentTable() {
   }).join('');
 }
 
-function updatePaginationStudent() {
+/**
+ * 💡 Synchronized Pagination Bar Helper
+ */
+function updatePaginationStudent(currentCount) {
   const state = window.StudentState;
   const info = document.getElementById('stu-pagination-info');
   if (info) {
-    const start = state.totalRows === 0 ? 0 : (state.page - 1) * state.limit + 1;
-    const end = Math.min(state.page * state.limit, state.totalRows);
-    info.innerHTML = `Showing <span class="text-indigo-400 font-extrabold">${start}</span> to <span class="text-indigo-400 font-extrabold">${end}</span> of <span class="text-indigo-400 font-extrabold">${state.totalRows}</span> entries`;
+    const totalToDisplay = (currentCount !== undefined) ? currentCount : state.totalRows;
+    const start = totalToDisplay === 0 ? 0 : (state.page - 1) * state.limit + 1;
+    const end = Math.min(state.page * state.limit, totalToDisplay);
+    info.innerHTML = `Showing <span class="text-indigo-400 font-extrabold">${start}</span> to <span class="text-indigo-400 font-extrabold">${end}</span> of <span class="text-indigo-400 font-extrabold">${totalToDisplay}</span> entries`;
   }
 }
 
@@ -631,4 +646,5 @@ window.exportToCSVStudent = exportToCSVStudent;
 window.onSearchInputStudent = onSearchInputStudent;
 window.changePageStudent = changePageStudent;
 window.onStudentStatusChange = onStudentStatusChange;
-window.onOldStudentIdLookup = onOldStudentIdLook
+window.onOldStudentIdLookup = onOldStudentIdLookup;
+window.onFyFilterChangeStudent = onFyFilterChangeStudent;
