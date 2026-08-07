@@ -1,7 +1,7 @@
 /**
  * GOLDEN ERP SYSTEM - HR PAYROLL EXP BOOK CONTROLLER (D1 DATABASE EDITION)
  * File: js/hr.js 
- * 💡 Features: D1 Compatible Staff ID Lookup, Auto Credit/Bonus/Fund Auto-Fill & Full Time Staff Deduction Engine
+ * 💡 Features: Bulletproof D1 Staff ID Lookup, Auto Credit (Total Salary) & Auto-Fill Engine
  */
 
 var gHrSubTab = 'payroll'; // 'payroll' | 'fulltime' | 'parttime'
@@ -243,9 +243,10 @@ function escapeHtmlHr(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-/**
- * 💡 CRITICAL AUTO-FILL ENGINE: ON STAFF ID / CATEGORY CHANGE
- */
+// ============================================================================
+// 💡 BULLETPROOF STAFF LOOKUP & AUTO-FILL ENGINE
+// ============================================================================
+
 async function onStaffIdChangePayroll() {
   const staffIdInput = document.getElementById('hr-pay-staff-id');
   const categorySelect = document.getElementById('hr-pay-category');
@@ -284,12 +285,21 @@ async function onStaffIdChangePayroll() {
   const targetIdNum = parseInt(rawStaffId, 10);
   const prefixKey = isPartTime ? 'pid' : 'fid';
 
-  const matchedStaff = (targetStaffList || []).find(s => {
-    const sId = parseInt(s.staff_id || s.staffId || s.id || s.fid || s.pid || 0, 10);
+  // 💡 BULLETPROOF SEARCH: Matches staff_id OR D1 ID OR Row NO
+  const matchedStaff = (targetStaffList || []).find((s, idx) => {
+    const sId = parseInt(s.staff_id || s.staffId || 0, 10);
+    const d1Id = parseInt(s.id || 0, 10);
+    const rowNo = parseInt(s.no || (idx + 1), 10);
     const sName = String(s.staff_idname || s.staffIdName || s.name || '').toLowerCase();
     const searchPad = `00${targetIdNum}`.slice(-3);
 
-    return sId === targetIdNum || sName.includes(`${prefixKey} ${searchPad}`) || sName.includes(`${prefixKey}${searchPad}`);
+    return (
+      sId === targetIdNum ||
+      d1Id === targetIdNum ||
+      rowNo === targetIdNum ||
+      sName.includes(`${prefixKey} ${searchPad}`) ||
+      sName.includes(`${prefixKey}${searchPad}`)
+    );
   });
 
   if (!matchedStaff) {
@@ -336,7 +346,8 @@ async function onStaffIdChangePayroll() {
 
   const defaultPrefix = isPartTime ? 'PID' : 'FID';
   const staffNameOnly = matchedStaff.name || '';
-  const defaultIdStr = `${defaultPrefix} ${String(matchedStaff.staff_id || matchedStaff.staffId || matchedStaff.id || targetIdNum).padStart(3, '0')} ${staffNameOnly}`;
+  const displayStaffId = matchedStaff.staff_id || matchedStaff.staffId || matchedStaff.id || targetIdNum;
+  const defaultIdStr = `${defaultPrefix} ${String(displayStaffId).padStart(3, '0')} ${staffNameOnly}`;
   const staffDisplayName = matchedStaff.staff_idname || matchedStaff.staffIdName || defaultIdStr;
 
   if (elDesc) elDesc.value = `[${staffDisplayName}, ${category} ${myStr}]`;
