@@ -19,14 +19,14 @@ window.currentExpenseBook = 'office';
 var searchTimeoutOffice = null;
 
 /**
- * 💡 Safe HTML String Escaper
+ * 💡 Safe HTML String Escaper (Line 29 Fixed)
  */
 function escapeHtml(str) {
   if (str === null || str === undefined) return '';
   return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
-    .replace/>/g, '&gt;')
+    .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
