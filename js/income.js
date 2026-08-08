@@ -1,18 +1,14 @@
 /**
  * GOLDEN ERP SYSTEM - MAIN INCOME BOOK MODULE
  * File: js/income.js
- * 💡 Features: Unified FYID Format (2627-STU-0001), D1 `student_id` Lookup Fix, Promo Matrix Rate Calculator, Split Payment & Receipt Printer
- * 🛠 PATCHED: onStudentIdOrFYChangeIncome() lookup now normalizes numeric IDs & FYID strings so legacy
- *            D1 rows with ".0" decimal artifacts (e.g. "1.0" instead of "1", or "2627-STU-2.0" instead
- *            of "2627-STU-0002") still match correctly. This was the cause of "ကျောင်းသား စာရင်း ရှာမတွေ့ပါ"
- *            appearing even when the student clearly exists in the Student List.
+ * 💡 Features: FY-Scoped Student Lookup (SELECT * FROM student WHERE fy = ?), Promo Matrix AUT Rate Calculator, Split Payment & Receipt Printer
  */
 
 var incomePage = 1;
 var incomeLimit = 50;
 var incomeTotalRows = 0;
 var incomeActiveData = [];
-var allStudentsLookupCache = null;
+var studentsByFyCache = {}; // 💡 FY-Scoped Student Cache Object
 var promoMatrixCache = null;
 var searchTimeoutIncome = null;
 
@@ -41,13 +37,13 @@ function parseCleanNum(val) {
 }
 
 /**
- * 💡 Safe Integer ID Parser (Fixes D1/Sheets ".0" decimal artifacts, e.g. "1.0" -> 1, "0001" -> 1)
+ * 💡 Safe Integer ID Parser
  */
 function parseCleanIntId(val) {
-  if (val === undefined || val === null || val === '') return NaN;
-  if (typeof val === 'number') return isNaN(val) ? NaN : Math.trunc(val);
+  if (val === undefined || val === null || val === '') return 0;
+  if (typeof val === 'number') return isNaN(val) ? 0 : Math.trunc(val);
   var n = parseInt(String(val).trim(), 10);
-  return isNaN(n) ? NaN : n;
+  return isNaN(n) ? 0 : n;
 }
 
 /**
@@ -65,9 +61,7 @@ function getFyShortCode(fyStr) {
 }
 
 /**
- * 💡 FYID Sanitizer (Cleans decimal artifacts e.g. "2627-STU-02.0" -> "2627-STU-0002")
- * Mirrors the same-purpose sanitizer already used for display in js/student.js, but reused here
- * so the LOOKUP comparison (not just the display) is resilient to malformed legacy data.
+ * 💡 FYID Sanitizer
  */
 function sanitizeFyidStr(fyidStr) {
   var s = String(fyidStr || '').trim();
@@ -84,7 +78,6 @@ function sanitizeFyidStr(fyidStr) {
 
 /**
  * 💡 Strict Search Filter Function for Main Income Book
- * Searches strictly by: Student Name (fyidName / name), FYID, Student ID.
  */
 function filterIncomeData(list, searchVal, fromDate, toDate) {
   var safeList = Array.isArray(list) ? list : [];
@@ -148,7 +141,7 @@ async function loadIncomeData(isSilent, forceRefresh) {
     });
 
     if (!res || !res.success) {
-      throw new Error(res?.message || "ဝင်ငွေစာရင်း အချက်အလုပ်များ ခေါ်ယူခြင်း မအောင်မြင်ပါ။");
+      throw new Error(res?.message || "ဝင်ငွေစာရင်း အချက်အလက်များ ခေါ်ယူခြင်း မအောင်မြင်ပါ။");
     }
 
     incomeActiveData = res.data || [];
@@ -184,7 +177,7 @@ function renderStatsIncome(stats) {
 }
 
 /**
- * 💡 Render Table Grid Rows (Integer NO Fix)
+ * 💡 Render Table Grid Rows (Integer NO)
  */
 function renderTableIncome() {
   var tbody = document.getElementById('income-table-body');
@@ -251,15 +244,7 @@ function renderTableIncome() {
 }
 
 /**
- * 💡 Auto Student Lookup Fix (Unified FYID Format: 2627-STU-0001 & D1 student_id property)
- * 🛠 PATCHED MATCHING LOGIC:
- *   - Student IDs are compared as NUMBERS (parseCleanIntId) instead of raw strings, so legacy
- *     D1/Sheets rows stored as "1.0" still match a typed "1".
- *   - FYID strings are sanitized (sanitizeFyidStr) before comparing, so "2627-STU-2.0" still
- *     matches the freshly generated "2627-STU-0002".
- *   - FY comparison now falls back to comparing the normalized FY SHORT CODE (e.g. "2627") in
- *     addition to the raw FY string, so minor formatting differences ("2026-2027" vs "FY 2026-2027")
- *     no longer block a valid match.
+ * 💡 FY-Scoped Student Lookup (SELECT * FROM student WHERE fy = ?)
  */
 async function onStudentIdOrFYChangeIncome() {
   var fyVal = document.getElementById('inc-fy')?.value || '2026-2027';
@@ -274,51 +259,37 @@ async function onStudentIdOrFYChangeIncome() {
     return;
   }
 
-  // 💡 Generate Unified FYID Format (e.g. 2627-STU-0001)
   var fyShort = getFyShortCode(fyVal);
   var paddedId = String(idVal).padStart(4, '0');
   var targetFyid = `${fyShort}-STU-${paddedId}`;
 
-  if (!allStudentsLookupCache) {
+  // 💡 FY-Scoped Cache Fetching (Fetches strictly for selected FY: SELECT * FROM student WHERE fy = ?)
+  if (!studentsByFyCache[fyVal]) {
     if (fyidNameShow) fyidNameShow.value = "ကျောင်းသား စာရင်း ရှာဖွေနေပါသည်...";
     try {
-      var res = await callApi('getStudentData', { page: 1, limit: 5000 }, 'GET');
+      var res = await callApi('getStudentData', { fy: fyVal, limit: 5000 }, 'GET');
       if (res && res.success) {
-        allStudentsLookupCache = res.data || [];
+        studentsByFyCache[fyVal] = res.data || [];
       }
     } catch (e) {
-      console.error("Failed to load students lookup cache", e);
+      console.error("Failed to load students for FY " + fyVal, e);
     }
   }
 
-  var list = allStudentsLookupCache || [];
-  var targetFyLower = fyVal.toLowerCase().trim();
+  var list = studentsByFyCache[fyVal] || [];
   var idValNum = parseCleanIntId(idVal);
 
-  // 💡 Match by FYID (sanitized) OR (student_id + Selected FY), both normalized to survive
-  //    ".0" decimal artifacts and minor FY string formatting differences from legacy D1 rows.
   var student = list.find(function(s) {
     var sFyid = sanitizeFyidStr(s.fyid).toLowerCase();
     var sStudentIdNum = parseCleanIntId(s.student_id ?? s.studentId ?? s.id);
-    var sFy = String(s.fy || '').toLowerCase().trim();
-    var sFyShort = getFyShortCode(s.fy);
 
     var fyidMatches = (sFyid === targetFyid.toLowerCase());
-    var idAndFyMatches = (
-      !isNaN(sStudentIdNum) &&
-      !isNaN(idValNum) &&
-      sStudentIdNum === idValNum &&
-      (sFy === targetFyLower || sFyShort === fyShort || !s.fy)
-    );
+    var idMatches = (!isNaN(sStudentIdNum) && !isNaN(idValNum) && sStudentIdNum === idValNum);
 
-    return fyidMatches || idAndFyMatches;
+    return fyidMatches || idMatches;
   });
 
   if (student) {
-    // 🛠 PATCH: sanitize student.fyid before displaying/submitting it — the underlying student
-    // record's own fyid column can still contain legacy ".0" artifacts (e.g. "2627-STU-02.0")
-    // until the one-time DB cleanup is run, and this field gets saved straight into the income
-    // entry, so it must be cleaned here too (not just at lookup-matching time).
     var actualFyid = sanitizeFyidStr(student.fyid) || targetFyid;
     var actualName = student.name || student.fyidName || student.fyid_name || '';
 
