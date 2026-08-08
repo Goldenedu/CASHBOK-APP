@@ -81,7 +81,10 @@
           <th scope="col" class="w-32 text-right text-emerald-400 text-xs py-3">DEBIT</th>
           <th scope="col" class="w-32 text-right text-rose-400 text-xs py-3">CREDIT</th>
           <th scope="col" class="w-36 text-right text-slate-400 text-xs py-3">BALANCES</th>
-          <th scope="col" class="w-32 text-right text-rose-400 text-xs py-3">LIABILITIES</th>
+          <!-- 🔧 FIX #6: id added so JS can hide this column entirely for Kitchen Exp Book,
+               which has no "liabilities" concept / column. See toggleOfficeLiabilitiesColumn()
+               in office-kit.js. -->
+          <th id="office-th-liabilities" scope="col" class="w-32 text-right text-rose-400 text-xs py-3">LIABILITIES</th>
           <th scope="col" class="w-36 text-slate-400 text-xs py-3">TRANSFER</th>
           <th scope="col" class="w-36 text-slate-400 text-xs py-3">VR NO</th>
           <th scope="col" class="w-24 text-slate-400 text-xs py-3">MY</th>
