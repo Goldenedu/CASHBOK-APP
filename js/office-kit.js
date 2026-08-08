@@ -19,7 +19,7 @@ window.currentExpenseBook = 'office';
 var searchTimeoutOffice = null;
 
 /**
- * 💡 Native DOM HTML Escaper (100% Bulletproof - No Regex Token Errors)
+ * 💡 Native DOM HTML Escaper
  */
 function escapeHtml(str) {
   if (str === null || str === undefined) return '';
@@ -73,7 +73,7 @@ function parseCleanNum(val) {
 }
 
 /**
- * 💡 Helper to normalize Uniform Item Properties (D1 Table `uniform_ledger` Field Mapping)
+ * 💡 Helper to normalize Uniform Item Properties (Stock = CURRENT QTY Calculation)
  */
 function getUniformItemProps(p) {
   if (!p) return { id: '', name: '', type: '', size: '', unitPrice: 0, sellingPrice: 0, stock: 0 };
@@ -84,7 +84,13 @@ function getUniformItemProps(p) {
   var psize = p.size ?? '';
   var uPrice = parseCleanNum(p.unit_price ?? p.unitPrice ?? 0);
   var sPrice = parseCleanNum(p.selling_price ?? p.sellingPrice ?? 0);
-  var cQty = parseCleanNum(p.current_qty ?? p.currentQty ?? p.opening_stock ?? p.openingStock ?? 0);
+
+  // 💡 Stock displays CURRENT QTY (Opening Stock - Selling Unit)
+  var openStock = parseCleanNum(p.opening_stock ?? p.openingStock ?? 0);
+  var sellUnit = parseCleanNum(p.selling_unit ?? p.sellingUnit ?? 0);
+  var cQty = (p.current_qty !== undefined && p.current_qty !== null) 
+    ? parseCleanNum(p.current_qty) 
+    : ((p.currentQty !== undefined && p.currentQty !== null) ? parseCleanNum(p.currentQty) : (openStock - sellUnit));
 
   return {
     id: String(pid).trim(),
@@ -691,6 +697,9 @@ async function saveOfficeForm(e) {
   }
 }
 
+/**
+ * 💡 EDIT OFFICE ENTRY (Advance Uniform Edit Fix)
+ */
 async function editOfficeEntry(uniqueId) {
   var row = window.OfficeState.activeData.find(function(item) { return item.uniqueId === uniqueId; });
   if (!row) {
@@ -698,6 +707,7 @@ async function editOfficeEntry(uniqueId) {
     return;
   }
 
+  // 1. Modal ပွင့်ပြီး Dropdown များကို အလျင်စလို ဖြည့်ဆည်းခွင့် ပေးပါ
   await openAddModalOffice();
 
   var uidEl = document.getElementById('office-uniqueId');
@@ -706,13 +716,27 @@ async function editOfficeEntry(uniqueId) {
   var dateEl = document.getElementById('office-date');
   if (dateEl) dateEl.value = row.date;
 
+  // 2. Category ကို သတ်မှတ်ပြီး Category Change Event ကို ချက်ချင်း အလုပ်လုပ်စေပါ
   var catEl = document.getElementById('office-category');
-  if (catEl) catEl.value = row.category;
+  if (catEl) {
+    catEl.value = row.category;
+    await onCategoryChangeOffice(); // 💡 Advance Uniform UI Containers unhide ဖြစ်စေရန် ခေါ်ယူပေးခြင်း
+  }
 
-  if (document.getElementById('office-product-id')) document.getElementById('office-product-id').value = row.id || "";
-  if (document.getElementById('office-unit')) document.getElementById('office-unit').value = row.unit || 1;
-  if (document.getElementById('office-unit-price')) document.getElementById('office-unit-price').value = row.unitPrice || 0;
-  
+  // 3. Product ID, Unit, Unit Price များကို ပြန်လည် ထည့်သွင်းပါ
+  if (document.getElementById('office-product-id')) {
+    document.getElementById('office-product-id').value = row.id || "";
+  }
+  if (document.getElementById('office-unit')) {
+    document.getElementById('office-unit').value = row.unit || 1;
+  }
+  if (document.getElementById('office-unit-price')) {
+    document.getElementById('office-unit-price').value = row.unitPrice || 0;
+  }
+
+  // 💡 Stock Badge နှင့် Calculated Profit Amount ပြန်လည် တွက်ချက်ပြသစေရန် ခေါ်ပေးပါ
+  onProductChangeOffice();
+
   var methodEl = document.getElementById('office-method');
   if (methodEl) methodEl.value = row.method || "Cash";
 
