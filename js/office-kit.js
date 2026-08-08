@@ -19,23 +19,23 @@ window.currentExpenseBook = 'office';
 var searchTimeoutOffice = null;
 
 /**
- * 💡 Safe HTML String Escaper (Line 29 Fixed)
+ * 💡 Native DOM HTML Escaper (100% Bulletproof - No Regex Token Errors)
  */
 function escapeHtml(str) {
   if (str === null || str === undefined) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+  if (typeof window.escapeHtml === 'function' && window.escapeHtml !== escapeHtml) {
+    return window.escapeHtml(str);
+  }
+  var div = document.createElement('div');
+  div.textContent = String(str);
+  return div.innerHTML;
 }
 
 /**
  * 💡 Switch between Office and Kitchen Expense Books
  */
 function switchExpenseBook(bookType) {
-  window.currentExpenseBook = bookType ? bookType.toLowerCase() : 'office';
+  window.currentExpenseBook = bookType ? String(bookType).toLowerCase() : 'office';
   loadOfficeData(false);
 }
 
@@ -43,7 +43,7 @@ function switchExpenseBook(bookType) {
  * 💡 Get Context for Expense Books (Office / Kitchen)
  */
 function getExpenseBookContext() {
-  const isKitchen = (window.currentExpenseBook === 'kitchen' || window.AppState?.currentModule === 'kitchen');
+  var isKitchen = (window.currentExpenseBook === 'kitchen' || window.AppState?.currentModule === 'kitchen');
   return {
     isKitchen: isKitchen,
     bookName: isKitchen ? 'Kitchen Exp Book' : 'Office Exp Book',
@@ -56,9 +56,9 @@ function getExpenseBookContext() {
  * 💡 Keeps the "+ Add ... Entry" toolbar button in sync with the current book
  */
 function updateOfficeAddButtonLabel() {
-  const ctx = getExpenseBookContext();
-  const labelEl = document.getElementById('office-add-btn-label');
-  if (labelEl) labelEl.innerText = `Add ${ctx.label} Entry`;
+  var ctx = getExpenseBookContext();
+  var labelEl = document.getElementById('office-add-btn-label');
+  if (labelEl) labelEl.innerText = 'Add ' + ctx.label + ' Entry';
 }
 
 /**
@@ -67,8 +67,8 @@ function updateOfficeAddButtonLabel() {
 function parseCleanNum(val) {
   if (val === undefined || val === null || val === '') return 0;
   if (typeof val === 'number') return isNaN(val) ? 0 : val;
-  const str = String(val).replace(/,/g, '').trim();
-  const num = parseFloat(str);
+  var str = String(val).replace(/,/g, '').trim();
+  var num = parseFloat(str);
   return isNaN(num) ? 0 : num;
 }
 
@@ -78,13 +78,13 @@ function parseCleanNum(val) {
 function getUniformItemProps(p) {
   if (!p) return { id: '', name: '', type: '', size: '', unitPrice: 0, sellingPrice: 0, stock: 0 };
   
-  const pid = p.product_id ?? p.productId ?? p.id ?? '';
-  const pname = p.product_name ?? p.productName ?? '';
-  const ptype = p.type ?? '';
-  const psize = p.size ?? '';
-  const uPrice = parseCleanNum(p.unit_price ?? p.unitPrice ?? 0);
-  const sPrice = parseCleanNum(p.selling_price ?? p.sellingPrice ?? 0);
-  const cQty = parseCleanNum(p.current_qty ?? p.currentQty ?? p.opening_stock ?? p.openingStock ?? 0);
+  var pid = p.product_id ?? p.productId ?? p.id ?? '';
+  var pname = p.product_name ?? p.productName ?? '';
+  var ptype = p.type ?? '';
+  var psize = p.size ?? '';
+  var uPrice = parseCleanNum(p.unit_price ?? p.unitPrice ?? 0);
+  var sPrice = parseCleanNum(p.selling_price ?? p.sellingPrice ?? 0);
+  var cQty = parseCleanNum(p.current_qty ?? p.currentQty ?? p.opening_stock ?? p.openingStock ?? 0);
 
   return {
     id: String(pid).trim(),
@@ -115,21 +115,21 @@ function getAvailableUniformProducts() {
  * 💡 Helper to build Options HTML for Product ID Select Dropdown
  */
 function buildUniformDropdownOptions(list) {
-  const select = document.getElementById('office-product-id');
+  var select = document.getElementById('office-product-id');
   if (!select) return;
 
   if (!list || list.length === 0) {
-    select.innerHTML = `<option value="">-- No Uniform Products Found --</option>`;
+    select.innerHTML = '<option value="">-- No Uniform Products Found --</option>';
     return;
   }
 
-  let html = `<option value="">-- Select Product ID --</option>`;
-  list.forEach(p => {
-    const item = getUniformItemProps(p);
+  var html = '<option value="">-- Select Product ID --</option>';
+  list.forEach(function(p) {
+    var item = getUniformItemProps(p);
     if (item.id) {
-      const sizeStr = item.size ? ` (${item.size})` : '';
-      const typeStr = item.type ? ` - ${item.type}` : '';
-      html += `<option value="${escapeHtml(item.id)}">${escapeHtml(item.id)} - ${escapeHtml(item.name)}${escapeHtml(typeStr)}${escapeHtml(sizeStr)}</option>`;
+      var sizeStr = item.size ? ' (' + item.size + ')' : '';
+      var typeStr = item.type ? ' - ' + item.type : '';
+      html += '<option value="' + escapeHtml(item.id) + '">' + escapeHtml(item.id) + ' - ' + escapeHtml(item.name) + escapeHtml(typeStr) + escapeHtml(sizeStr) + '</option>';
     }
   });
   select.innerHTML = html;
@@ -139,18 +139,18 @@ function buildUniformDropdownOptions(list) {
  * 💡 Fetch Uniform Products List for Dropdown (With Direct D1 `uniform_ledger` Connection)
  */
 async function fetchUniformProductsListOffice() {
-  const select = document.getElementById('office-product-id');
+  var select = document.getElementById('office-product-id');
   if (!select) return;
 
-  let localProducts = getAvailableUniformProducts();
+  var localProducts = getAvailableUniformProducts();
   if (localProducts.length > 0) {
     buildUniformDropdownOptions(localProducts);
     return;
   }
 
-  select.innerHTML = `<option value="">Loading Products from Uniform Ledger...</option>`;
+  select.innerHTML = '<option value="">Loading Products from Uniform Ledger...</option>';
   try {
-    let res = null;
+    var res = null;
     if (typeof callApi === 'function') {
       res = await callApi('getUniformData', { page: 1, limit: 1000, forceRefresh: true }, 'GET');
     }
@@ -159,39 +159,39 @@ async function fetchUniformProductsListOffice() {
       window.OfficeState.uniformProducts = res.data;
       buildUniformDropdownOptions(res.data);
     } else {
-      select.innerHTML = `<option value="">-- No Uniform Products Found --</option>`;
+      select.innerHTML = '<option value="">-- No Uniform Products Found --</option>';
     }
   } catch (err) {
     console.warn("Failed to fetch uniform products for office kit:", err);
-    select.innerHTML = `<option value="">-- Error Loading Products --</option>`;
+    select.innerHTML = '<option value="">-- Error Loading Products --</option>';
   }
 }
 
 /**
- * 💡 Strict Filter Function for Office Expenses (Client-side Search Backup)
+ * 💡 Strict Filter Function for Office Expenses
  */
 function filterOfficeData(list, searchVal, fromDate, toDate) {
-  const safeList = Array.isArray(list) ? list : [];
-  return safeList.filter(row => {
+  var safeList = Array.isArray(list) ? list : [];
+  return safeList.filter(function(row) {
     if (typeof window.isDateInRange === 'function') {
       if (!window.isDateInRange(row.date, fromDate, toDate)) return false;
     }
 
     if (!searchVal || !searchVal.trim()) return true;
-    const q = searchVal.trim().toLowerCase();
-    const desc = String(row.description || '').toLowerCase();
-    const cat = String(row.category || '').toLowerCase();
-    const debit = String(row.debit || '');
-    const credit = String(row.credit || '');
-    const vrNo = String(row.vrNo || row.vr_no || '').toLowerCase();
+    var q = searchVal.trim().toLowerCase();
+    var desc = String(row.description || '').toLowerCase();
+    var cat = String(row.category || '').toLowerCase();
+    var debit = String(row.debit || '');
+    var credit = String(row.credit || '');
+    var vrNo = String(row.vrNo || row.vr_no || '').toLowerCase();
 
     return desc.includes(q) || cat.includes(q) || debit.includes(q) || credit.includes(q) || vrNo.includes(q);
   });
 }
 
 function clearDateFilterOffice() {
-  const fromEl = document.getElementById('office-date-from');
-  const toEl = document.getElementById('office-date-to');
+  var fromEl = document.getElementById('office-date-from');
+  var toEl = document.getElementById('office-date-to');
   if (fromEl) fromEl.value = '';
   if (toEl) toEl.value = '';
   onSearchInputOffice();
@@ -201,26 +201,26 @@ function clearDateFilterOffice() {
  * 💡 Populate Dropdown Options from Config.js
  */
 async function populateDropdownsOffice() {
-  const ctx = getExpenseBookContext();
-  const def = (window.DROPDOWNS && window.DROPDOWNS[ctx.dropdownKey]) || {};
+  var ctx = getExpenseBookContext();
+  var def = (window.DROPDOWNS && window.DROPDOWNS[ctx.dropdownKey]) || {};
 
-  const catSelect = document.getElementById('office-category');
+  var catSelect = document.getElementById('office-category');
   if (catSelect && def.category) {
-    catSelect.innerHTML = def.category.map(c => `<option value="${c}">${c}</option>`).join('');
+    catSelect.innerHTML = def.category.map(function(c) { return '<option value="' + c + '">' + c + '</option>'; }).join('');
   }
 
-  const methodSelect = document.getElementById('office-method');
+  var methodSelect = document.getElementById('office-method');
   if (methodSelect && def.method) {
-    methodSelect.innerHTML = def.method.map(m => `<option value="${m}">${m}</option>`).join('');
+    methodSelect.innerHTML = def.method.map(function(m) { return '<option value="' + m + '">' + m + '</option>'; }).join('');
   }
 
-  const transSelect = document.getElementById('office-transfer');
+  var transSelect = document.getElementById('office-transfer');
   if (transSelect) {
     if (def.transfer) {
-      transSelect.innerHTML = `<option value="">-- No Transfer --</option>` +
-        def.transfer.map(t => `<option value="${t}">${t}</option>`).join('');
+      transSelect.innerHTML = '<option value="">-- No Transfer --</option>' +
+        def.transfer.map(function(t) { return '<option value="' + t + '">' + t + '</option>'; }).join('');
     } else {
-      transSelect.innerHTML = `<option value="">-- No Transfer --</option>`;
+      transSelect.innerHTML = '<option value="">-- No Transfer --</option>';
     }
   }
 
@@ -231,22 +231,22 @@ async function populateDropdownsOffice() {
  * 💡 Dynamic Form Controls based on Selected Category
  */
 async function onCategoryChangeOffice() {
-  const catEl = document.getElementById('office-category');
-  const category = catEl ? catEl.value : '';
+  var catEl = document.getElementById('office-category');
+  var category = catEl ? catEl.value : '';
 
-  const prodContainer = document.getElementById('office-product-container');
-  const profitPreviewContainer = document.getElementById('office-profit-preview-container');
-  const qtyPriceContainer = document.getElementById('office-qty-price-container');
-  const liabilitiesContainer = document.getElementById('office-liabilities-container');
+  var prodContainer = document.getElementById('office-product-container');
+  var profitPreviewContainer = document.getElementById('office-profit-preview-container');
+  var qtyPriceContainer = document.getElementById('office-qty-price-container');
+  var liabilitiesContainer = document.getElementById('office-liabilities-container');
 
-  const debitInput = document.getElementById('office-debit');
-  const creditInput = document.getElementById('office-credit');
-  const methodSelect = document.getElementById('office-method');
-  const transSelect = document.getElementById('office-transfer');
-  const liabilitiesInput = document.getElementById('office-liabilities');
+  var debitInput = document.getElementById('office-debit');
+  var creditInput = document.getElementById('office-credit');
+  var methodSelect = document.getElementById('office-method');
+  var transSelect = document.getElementById('office-transfer');
+  var liabilitiesInput = document.getElementById('office-liabilities');
 
-  const isUniform = (category === "Advance Uniform" || category === "Advance Unifrom");
-  const isLiabilities = (category === "Liabilities");
+  var isUniform = (category === "Advance Uniform" || category === "Advance Unifrom");
+  var isLiabilities = (category === "Liabilities");
 
   if (isUniform) {
     if (prodContainer) prodContainer.classList.remove('hidden');
@@ -291,13 +291,13 @@ async function onCategoryChangeOffice() {
  * 💡 Auto-fill Description on Transfer Selection
  */
 function onTransferTargetChangeOffice() {
-  const transSelect = document.getElementById('office-transfer');
-  const descInput = document.getElementById('office-description');
+  var transSelect = document.getElementById('office-transfer');
+  var descInput = document.getElementById('office-description');
   if (!transSelect || !descInput) return;
 
-  const targetBook = transSelect.value;
+  var targetBook = transSelect.value;
   if (targetBook && targetBook !== 'None' && targetBook !== '-') {
-    descInput.value = `[Transfer to ${targetBook}] `;
+    descInput.value = '[Transfer to ' + targetBook + '] ';
   }
 }
 
@@ -305,34 +305,34 @@ function onTransferTargetChangeOffice() {
  * 💡 Handle Product Selection for Advance Uniform
  */
 function onProductChangeOffice() {
-  const prodEl = document.getElementById('office-product-id');
-  const productId = prodEl ? prodEl.value : '';
-  const stockBadge = document.getElementById('office-stock-badge');
-  const unitEl = document.getElementById('office-unit');
-  const unit = parseCleanNum(unitEl ? unitEl.value : 1) || 1;
+  var prodEl = document.getElementById('office-product-id');
+  var productId = prodEl ? prodEl.value : '';
+  var stockBadge = document.getElementById('office-stock-badge');
+  var unitEl = document.getElementById('office-unit');
+  var unit = parseCleanNum(unitEl ? unitEl.value : 1) || 1;
 
-  const productsList = getAvailableUniformProducts();
+  var productsList = getAvailableUniformProducts();
 
   if (productId && productsList.length > 0) {
-    const rawProd = productsList.find(p => {
-      const item = getUniformItemProps(p);
+    var rawProd = productsList.find(function(p) {
+      var item = getUniformItemProps(p);
       return item.id.toLowerCase() === String(productId).trim().toLowerCase();
     });
 
     if (rawProd) {
-      const prod = getUniformItemProps(rawProd);
-      const descEl = document.getElementById('office-description');
+      var prod = getUniformItemProps(rawProd);
+      var descEl = document.getElementById('office-description');
       if (descEl) {
-        descEl.value = `${prod.id} ${prod.name} ${prod.type} ${prod.size} - ${unit}Nos`.replace(/\s+/g, ' ').trim();
+        descEl.value = (prod.id + ' ' + prod.name + ' ' + prod.type + ' ' + prod.size + ' - ' + unit + 'Nos').replace(/\s+/g, ' ').trim();
       }
 
-      const unitPriceEl = document.getElementById('office-unit-price');
+      var unitPriceEl = document.getElementById('office-unit-price');
       if (unitPriceEl && parseCleanNum(unitPriceEl.value) === 0) {
         unitPriceEl.value = prod.unitPrice || 0;
       }
 
       if (stockBadge) {
-        stockBadge.innerText = `Stock: ${prod.stock}`;
+        stockBadge.innerText = 'Stock: ' + prod.stock;
         stockBadge.classList.remove('hidden');
       }
 
@@ -340,7 +340,7 @@ function onProductChangeOffice() {
     }
   } else {
     if (stockBadge) stockBadge.classList.add('hidden');
-    const profitDisplayEl = document.getElementById('office-calculated-profit');
+    var profitDisplayEl = document.getElementById('office-calculated-profit');
     if (profitDisplayEl) profitDisplayEl.innerText = "0 MMK";
   }
 }
@@ -349,42 +349,42 @@ function onProductChangeOffice() {
  * 💡 Debit & Uniform Profit Preview Calculator
  */
 function calculateDebitOffice() {
-  const categoryEl = document.getElementById('office-category');
-  const category = categoryEl ? categoryEl.value : '';
+  var categoryEl = document.getElementById('office-category');
+  var category = categoryEl ? categoryEl.value : '';
 
   if (category === "Advance Uniform" || category === "Advance Unifrom") {
-    const prodEl = document.getElementById('office-product-id');
-    const productId = prodEl ? prodEl.value : '';
-    const unitEl = document.getElementById('office-unit');
-    const unit = parseCleanNum(unitEl ? unitEl.value : 0);
-    const unitPrice = parseCleanNum(document.getElementById('office-unit-price')?.value);
-    const creditVal = parseCleanNum(document.getElementById('office-credit')?.value);
+    var prodEl = document.getElementById('office-product-id');
+    var productId = prodEl ? prodEl.value : '';
+    var unitEl = document.getElementById('office-unit');
+    var unit = parseCleanNum(unitEl ? unitEl.value : 0);
+    var unitPrice = parseCleanNum(document.getElementById('office-unit-price')?.value);
+    var creditVal = parseCleanNum(document.getElementById('office-credit')?.value);
 
     if (creditVal === 0 && document.getElementById('office-debit')) {
       document.getElementById('office-debit').value = unit * unitPrice;
     }
 
-    const productsList = getAvailableUniformProducts();
+    var productsList = getAvailableUniformProducts();
 
     if (productId && productsList.length > 0) {
-      const rawProd = productsList.find(p => {
-        const item = getUniformItemProps(p);
+      var rawProd = productsList.find(function(p) {
+        var item = getUniformItemProps(p);
         return item.id.toLowerCase() === String(productId).trim().toLowerCase();
       });
 
       if (rawProd) {
-        const prod = getUniformItemProps(rawProd);
-        const descEl = document.getElementById('office-description');
+        var prod = getUniformItemProps(rawProd);
+        var descEl = document.getElementById('office-description');
         if (descEl && descEl.value.includes('-')) {
-          const baseDesc = descEl.value.split('-')[0].trim();
-          descEl.value = `${baseDesc} - ${unit}Nos`;
+          var baseDesc = descEl.value.split('-')[0].trim();
+          descEl.value = baseDesc + ' - ' + unit + 'Nos';
         }
 
-        const sellingPrice = prod.sellingPrice;
-        const profitPerUnit = sellingPrice - unitPrice;
-        const totalProfit = unit * profitPerUnit;
+        var sellingPrice = prod.sellingPrice;
+        var profitPerUnit = sellingPrice - unitPrice;
+        var totalProfit = unit * profitPerUnit;
 
-        const profitDisplayEl = document.getElementById('office-calculated-profit');
+        var profitDisplayEl = document.getElementById('office-calculated-profit');
         if (profitDisplayEl) {
           profitDisplayEl.innerText = Number(totalProfit || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " MMK";
         }
@@ -397,9 +397,9 @@ function calculateDebitOffice() {
  * 💡 Load Expense Data from Cloudflare D1 Backend
  */
 async function loadOfficeData(isSilent, forceRefresh) {
-  const state = window.OfficeState;
-  const ctx = getExpenseBookContext();
-  const bookName = ctx.bookName;
+  var state = window.OfficeState;
+  var ctx = getExpenseBookContext();
+  var bookName = ctx.bookName;
 
   updateOfficeAddButtonLabel();
 
@@ -408,7 +408,7 @@ async function loadOfficeData(isSilent, forceRefresh) {
       toggleLoading(true);
     }
 
-    const response = await callApi('getExpenseData', {
+    var response = await callApi('getExpenseData', {
       bookName: bookName,
       page: state.page,
       limit: state.limit,
@@ -438,8 +438,8 @@ async function loadOfficeData(isSilent, forceRefresh) {
  * 💡 Update Top 4 Stat Cards with Current FY Analytics
  */
 function updateStatsOffice() {
-  const stats = window.OfficeState.stats;
-  const setT = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+  var stats = window.OfficeState.stats;
+  var setT = function(id, val) { var el = document.getElementById(id); if (el) el.innerText = val; };
 
   setT('off-total-income', Number(stats.totalIncome || 0).toLocaleString('en-US') + " MMK");
   setT('off-total-expense', Number(stats.totalExpense || 0).toLocaleString('en-US') + " MMK");
@@ -451,87 +451,94 @@ function updateStatsOffice() {
  * 💡 Render Office Table Grid Rows
  */
 function renderOfficeTable() {
-  const tableBody = document.getElementById('office-table-body');
+  var tableBody = document.getElementById('office-table-body');
   if (!tableBody) return;
 
-  const rawData = window.OfficeState.activeData || [];
-  const searchVal = window.OfficeState.searchVal || '';
+  var rawData = window.OfficeState.activeData || [];
+  var searchVal = window.OfficeState.searchVal || '';
 
-  const fromEl = document.getElementById('office-date-from');
-  const toEl = document.getElementById('office-date-to');
-  const fromDate = fromEl ? fromEl.value : '';
-  const toDate = toEl ? toEl.value : '';
+  var fromEl = document.getElementById('office-date-from');
+  var toEl = document.getElementById('office-date-to');
+  var fromDate = fromEl ? fromEl.value : '';
+  var toDate = toEl ? toEl.value : '';
 
-  const data = filterOfficeData(rawData, searchVal, fromDate, toDate);
+  var data = filterOfficeData(rawData, searchVal, fromDate, toDate);
 
   if (!data || data.length === 0) {
-    tableBody.innerHTML = `<tr><td colspan="16" class="text-center py-8 text-slate-500 font-bold">ရှာဖွေမှုနှင့် ကိုက်ညီသော စာရင်း မရှိပါ။</td></tr>`;
+    tableBody.innerHTML = '<tr><td colspan="16" class="text-center py-8 text-slate-500 font-bold">ရှာဖွေမှုနှင့် ကိုက်ညီသော စာရင်း မရှိပါ။</td></tr>';
     return;
   }
 
-  const userRole = (window.AppState ? window.AppState.currentUserRole : 'Viewer');
-  const isViewer = (userRole === "Viewer");
+  var userRole = (window.AppState ? window.AppState.currentUserRole : 'Viewer');
+  var isViewer = (userRole === "Viewer");
 
-  tableBody.innerHTML = data.map((row) => {
-    let displayDate = row.date || "";
+  tableBody.innerHTML = data.map(function(row) {
+    var displayDate = row.date || "";
     if (displayDate) {
-      let parts = displayDate.split('-');
-      if (parts.length === 3) displayDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+      var parts = displayDate.split('-');
+      if (parts.length === 3) displayDate = parts[2] + '-' + parts[1] + '-' + parts[0];
     }
 
-    const lockClass = (row.isLocked || isViewer) ? "opacity-30 cursor-not-allowed pointer-events-none" : "hover:text-white";
-    const lockTitle = row.isLocked ? "Locked (Must be edited from Source Book)" : "";
+    var isLocked = Boolean(row.isLocked || isViewer);
+    var lockClass = isLocked ? "opacity-30 cursor-not-allowed pointer-events-none" : "hover:text-white";
+    var lockTitle = row.isLocked ? "Locked (Must be edited from Source Book)" : "";
+    var disabledAttr = isLocked ? 'disabled' : '';
 
-    return `
-      <tr class="hover:bg-slate-800/20 text-slate-300">
-        <td class="text-center font-mono font-semibold text-slate-500">${row.no || '-'}</td>
-        <td class="font-mono text-xs">${escapeHtml(displayDate)}</td>
-        <td>${typeof window.formatCategoryBadgeHtml === 'function' ? window.formatCategoryBadgeHtml(row.category) : escapeHtml(row.category)}</td>
-        <td class="min-w-[280px] max-w-md truncate" title="${escapeHtml(row.description)}">${escapeHtml(row.description)}</td>
-        <td class="text-right font-mono">${row.unit || '0'}</td>
-        <td class="text-right font-mono">${Number(row.unitPrice || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-        <td class="font-bold">${escapeHtml(row.method) || '-'}</td>
-        <td class="text-right text-emerald-400 font-mono font-semibold">${row.debit > 0 ? Number(row.debit).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '-'}</td>
-        <td class="text-right text-rose-400 font-mono font-semibold">${row.credit > 0 ? Number(row.credit).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '-'}</td>
-        <td class="text-right text-slate-400 font-mono font-bold">${Number(row.balances || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-        <td class="text-right text-rose-400 font-mono font-bold">${Number(row.liabilities || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-        <td class="text-xs text-indigo-400">${escapeHtml(row.transfer) || '-'}</td>
-        <td class="font-mono text-xs text-slate-400">${escapeHtml(row.vrNo || '-')}</td>
-        <td class="font-mono text-xs">${escapeHtml(row.my || '-')}</td>
-        <td class="font-mono text-xs font-bold text-indigo-300">${escapeHtml(row.fy || '-')}</td>
-        <td class="right-0 sticky bg-[#0c1322] border-l border-slate-800 shadow-lg text-center">
-          <div class="flex items-center justify-center gap-3">
-            <button onclick="editOfficeEntry('${row.uniqueId}')" class="text-indigo-400 hover:text-indigo-300 transition ${lockClass}" title="${lockTitle}" ${row.isLocked || isViewer ? 'disabled' : ''}>
-              <i class="fa-solid fa-pen-to-square"></i>
-            </button>
-            <button onclick="deleteOfficeEntry('${row.uniqueId}')" class="text-rose-400 hover:text-rose-300 transition ${lockClass}" title="${lockTitle}" ${row.isLocked || isViewer ? 'disabled' : ''}>
-              <i class="fa-solid fa-trash"></i>
-            </button>
-          </div>
-        </td>
-      </tr>
-    `;
+    var catBadge = typeof window.formatCategoryBadgeHtml === 'function' ? window.formatCategoryBadgeHtml(row.category) : escapeHtml(row.category);
+    var debitStr = row.debit > 0 ? Number(row.debit).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '-';
+    var creditStr = row.credit > 0 ? Number(row.credit).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '-';
+    var balStr = Number(row.balances || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    var liabStr = Number(row.liabilities || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    var priceStr = Number(row.unitPrice || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+    return '<tr class="hover:bg-slate-800/20 text-slate-300">' +
+        '<td class="text-center font-mono font-semibold text-slate-500">' + escapeHtml(row.no || '-') + '</td>' +
+        '<td class="font-mono text-xs">' + escapeHtml(displayDate) + '</td>' +
+        '<td>' + catBadge + '</td>' +
+        '<td class="min-w-[280px] max-w-md truncate" title="' + escapeHtml(row.description) + '">' + escapeHtml(row.description) + '</td>' +
+        '<td class="text-right font-mono">' + (row.unit || '0') + '</td>' +
+        '<td class="text-right font-mono">' + priceStr + '</td>' +
+        '<td class="font-bold">' + escapeHtml(row.method || '-') + '</td>' +
+        '<td class="text-right text-emerald-400 font-mono font-semibold">' + debitStr + '</td>' +
+        '<td class="text-right text-rose-400 font-mono font-semibold">' + creditStr + '</td>' +
+        '<td class="text-right text-slate-400 font-mono font-bold">' + balStr + '</td>' +
+        '<td class="text-right text-rose-400 font-mono font-bold">' + liabStr + '</td>' +
+        '<td class="text-xs text-indigo-400">' + escapeHtml(row.transfer || '-') + '</td>' +
+        '<td class="font-mono text-xs text-slate-400">' + escapeHtml(row.vrNo || '-') + '</td>' +
+        '<td class="font-mono text-xs">' + escapeHtml(row.my || '-') + '</td>' +
+        '<td class="font-mono text-xs font-bold text-indigo-300">' + escapeHtml(row.fy || '-') + '</td>' +
+        '<td class="right-0 sticky bg-[#0c1322] border-l border-slate-800 shadow-lg text-center">' +
+          '<div class="flex items-center justify-center gap-3">' +
+            '<button onclick="editOfficeEntry(\'' + row.uniqueId + '\')" class="text-indigo-400 hover:text-indigo-300 transition ' + lockClass + '" title="' + lockTitle + '" ' + disabledAttr + '>' +
+              '<i class="fa-solid fa-pen-to-square"></i>' +
+            '</button>' +
+            '<button onclick="deleteOfficeEntry(\'' + row.uniqueId + '\')" class="text-rose-400 hover:text-rose-300 transition ' + lockClass + '" title="' + lockTitle + '" ' + disabledAttr + '>' +
+              '<i class="fa-solid fa-trash"></i>' +
+            '</button>' +
+          '</div>' +
+        '</td>' +
+      '</tr>';
   }).join('');
 }
 
 function updatePaginationOffice() {
-  const state = window.OfficeState;
-  const info = document.getElementById('off-pagination-info');
+  var state = window.OfficeState;
+  var info = document.getElementById('off-pagination-info');
   if (info) {
-    const start = state.totalRows === 0 ? 0 : (state.page - 1) * state.limit + 1;
-    const end = Math.min(state.page * state.limit, state.totalRows);
-    info.innerHTML = `Showing <span class="text-indigo-400 font-extrabold">${start}</span> to <span class="text-indigo-400 font-extrabold">${end}</span> of <span class="text-indigo-400 font-extrabold">${state.totalRows}</span> entries`;
+    var start = state.totalRows === 0 ? 0 : (state.page - 1) * state.limit + 1;
+    var end = Math.min(state.page * state.limit, state.totalRows);
+    info.innerHTML = 'Showing <span class="text-indigo-400 font-extrabold">' + start + '</span> to <span class="text-indigo-400 font-extrabold">' + end + '</span> of <span class="text-indigo-400 font-extrabold">' + state.totalRows + '</span> entries';
   }
 
-  const prevBtn = document.getElementById('off-btn-prev');
+  var prevBtn = document.getElementById('off-btn-prev');
   if (prevBtn) prevBtn.disabled = (state.page === 1);
 
-  const nextBtn = document.getElementById('off-btn-next');
+  var nextBtn = document.getElementById('off-btn-next');
   if (nextBtn) nextBtn.disabled = (state.page * state.limit >= state.totalRows);
 }
 
 function changePageOffice(dir) {
-  const state = window.OfficeState;
+  var state = window.OfficeState;
   if (dir === -1 && state.page > 1) {
     state.page--;
     loadOfficeData(false);
@@ -543,8 +550,8 @@ function changePageOffice(dir) {
 
 function onSearchInputOffice() {
   clearTimeout(searchTimeoutOffice);
-  searchTimeoutOffice = setTimeout(() => {
-    const input = document.getElementById('office-search');
+  searchTimeoutOffice = setTimeout(function() {
+    var input = document.getElementById('office-search');
     window.OfficeState.searchVal = input ? input.value.trim() : '';
     window.OfficeState.page = 1;
     renderOfficeTable();
@@ -552,88 +559,88 @@ function onSearchInputOffice() {
 }
 
 function bindModalOfficeListeners() {
-  const unitInput = document.getElementById('office-unit');
+  var unitInput = document.getElementById('office-unit');
   if (unitInput) {
     unitInput.oninput = onProductChangeOffice;
   }
 
-  const unitPriceInput = document.getElementById('office-unit-price');
+  var unitPriceInput = document.getElementById('office-unit-price');
   if (unitPriceInput) {
     unitPriceInput.oninput = calculateDebitOffice;
   }
 
-  const prodSelect = document.getElementById('office-product-id');
+  var prodSelect = document.getElementById('office-product-id');
   if (prodSelect) {
     prodSelect.onchange = onProductChangeOffice;
   }
 }
 
 async function openAddModalOffice() {
-  const form = document.getElementById('office-form');
+  var form = document.getElementById('office-form');
   if (form) form.reset();
 
-  const uidEl = document.getElementById('office-uniqueId');
+  var uidEl = document.getElementById('office-uniqueId');
   if (uidEl) uidEl.value = "";
 
-  const dateEl = document.getElementById('office-date');
+  var dateEl = document.getElementById('office-date');
   if (dateEl) {
-    const now = new Date();
-    const yyyy = now.getFullYear();
-    const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const dd = String(now.getDate()).padStart(2, '0');
-    dateEl.value = `${yyyy}-${mm}-${dd}`;
+    var now = new Date();
+    var yyyy = now.getFullYear();
+    var mm = String(now.getMonth() + 1).padStart(2, '0');
+    var dd = String(now.getDate()).padStart(2, '0');
+    dateEl.value = yyyy + '-' + mm + '-' + dd;
   }
 
-  const titleEl = document.getElementById('office-form-title');
-  if (titleEl) titleEl.innerText = `Add ${getExpenseBookContext().label} Expense Entry`;
+  var titleEl = document.getElementById('office-form-title');
+  if (titleEl) titleEl.innerText = 'Add ' + getExpenseBookContext().label + ' Expense Entry';
 
   await populateDropdownsOffice();
   bindModalOfficeListeners();
 
-  const modalEl = document.getElementById('office-modal');
+  var modalEl = document.getElementById('office-modal');
   if (modalEl) modalEl.classList.remove('hidden');
 }
 
 function closeOfficeModal() {
-  const modalEl = document.getElementById('office-modal');
+  var modalEl = document.getElementById('office-modal');
   if (modalEl) modalEl.classList.add('hidden');
 }
 
 function parseLiabilityAmount(val) {
   if (!val) return 0;
-  let str = String(val).trim();
-  let isNeg = (str.includes('(') && str.includes(')')) || str.startsWith('-');
-  let num = parseCleanNum(str);
+  var str = String(val).trim();
+  var isNeg = (str.includes('(') && str.includes(')')) || str.startsWith('-');
+  var num = parseCleanNum(str);
   return isNeg ? -num : num;
 }
 
 async function saveOfficeForm(e) {
   if (e && e.preventDefault) e.preventDefault();
 
-  const uniqueId = document.getElementById('office-uniqueId')?.value || '';
-  const isAdd = (!uniqueId);
-  const category = document.getElementById('office-category')?.value || '';
-  const productId = document.getElementById('office-product-id') ? document.getElementById('office-product-id').value : '';
-  const unit = parseCleanNum(document.getElementById('office-unit')?.value);
-  const unitPrice = parseCleanNum(document.getElementById('office-unit-price')?.value);
+  var uniqueId = document.getElementById('office-uniqueId')?.value || '';
+  var isAdd = (!uniqueId);
+  var category = document.getElementById('office-category')?.value || '';
+  var productId = document.getElementById('office-product-id') ? document.getElementById('office-product-id').value : '';
+  var unit = parseCleanNum(document.getElementById('office-unit')?.value);
+  var unitPrice = parseCleanNum(document.getElementById('office-unit-price')?.value);
 
-  const productsList = getAvailableUniformProducts();
+  var productsList = getAvailableUniformProducts();
 
-  let calculatedProfit = 0;
+  var calculatedProfit = 0;
   if ((category === "Advance Uniform" || category === "Advance Unifrom") && productId && productsList.length > 0) {
-    const rawProd = productsList.find(p => {
-      const item = getUniformItemProps(p);
+    var rawProd = productsList.find(function(p) {
+      var item = getUniformItemProps(p);
       return item.id.toLowerCase() === String(productId).trim().toLowerCase();
     });
     if (rawProd) {
-      const prod = getUniformItemProps(rawProd);
-      const sellingPrice = prod.sellingPrice;
-      const profitPerUnit = sellingPrice - unitPrice;
+      var prod = getUniformItemProps(rawProd);
+      var sellingPrice = prod.sellingPrice;
+      var profitPerUnit = sellingPrice - unitPrice;
       calculatedProfit = unit * profitPerUnit;
     }
   }
 
-  const entry = {
+  var entry = {
     uniqueId: uniqueId,
     date: document.getElementById('office-date')?.value || '',
     category: category,
@@ -652,18 +659,18 @@ async function saveOfficeForm(e) {
   };
 
   closeOfficeModal();
-  const action = isAdd ? 'saveExpenseEntry' : 'updateExpenseEntry';
+  var action = isAdd ? 'saveExpenseEntry' : 'updateExpenseEntry';
   if (typeof showToast === 'function') showToast("SUCCESS", "စာရင်းအား သိမ်းဆည်းနေပါသည်...");
   if (typeof toggleLoading === 'function') toggleLoading(true);
 
   try {
-    const response = await callApi(action, entry);
+    var response = await callApi(action, entry);
     if (typeof toggleLoading === 'function') toggleLoading(false);
 
     if (response && response.success) {
       if (typeof showToast === 'function') {
-        const label = getExpenseBookContext().label;
-        showToast("SUCCESS", isAdd ? `${label} Expense စာရင်းသစ် အောင်မြင်စွာ သိမ်းဆည်းပြီးပါပြီ။` : `${label} Expense စာရင်း အောင်မြင်စွာ ပြင်ဆင်ပြီးပါပြီ။`);
+        var label = getExpenseBookContext().label;
+        showToast("SUCCESS", isAdd ? (label + " Expense စာရင်းသစ် အောင်မြင်စွာ သိမ်းဆည်းပြီးပါပြီ။") : (label + " Expense စာရင်း အောင်မြင်စွာ ပြင်ဆင်ပြီးပါပြီ။"));
       }
       if (window.BankCache) window.BankCache = { bank: null, cash: null, kitchen: null };
       
@@ -685,7 +692,7 @@ async function saveOfficeForm(e) {
 }
 
 async function editOfficeEntry(uniqueId) {
-  const row = window.OfficeState.activeData.find(item => item.uniqueId === uniqueId);
+  var row = window.OfficeState.activeData.find(function(item) { return item.uniqueId === uniqueId; });
   if (!row) {
     if (typeof showToast === 'function') showToast("ERROR", "မူရင်းဒေတာကို ရှာမတွေ့ပါ။");
     return;
@@ -693,49 +700,49 @@ async function editOfficeEntry(uniqueId) {
 
   await openAddModalOffice();
 
-  const uidEl = document.getElementById('office-uniqueId');
+  var uidEl = document.getElementById('office-uniqueId');
   if (uidEl) uidEl.value = row.uniqueId;
 
-  const dateEl = document.getElementById('office-date');
+  var dateEl = document.getElementById('office-date');
   if (dateEl) dateEl.value = row.date;
 
-  const catEl = document.getElementById('office-category');
+  var catEl = document.getElementById('office-category');
   if (catEl) catEl.value = row.category;
 
   if (document.getElementById('office-product-id')) document.getElementById('office-product-id').value = row.id || "";
   if (document.getElementById('office-unit')) document.getElementById('office-unit').value = row.unit || 1;
   if (document.getElementById('office-unit-price')) document.getElementById('office-unit-price').value = row.unitPrice || 0;
   
-  const methodEl = document.getElementById('office-method');
+  var methodEl = document.getElementById('office-method');
   if (methodEl) methodEl.value = row.method || "Cash";
 
-  const debitEl = document.getElementById('office-debit');
+  var debitEl = document.getElementById('office-debit');
   if (debitEl) debitEl.value = row.debit || 0;
 
-  const creditEl = document.getElementById('office-credit');
+  var creditEl = document.getElementById('office-credit');
   if (creditEl) creditEl.value = row.credit || 0;
 
-  const liabEl = document.getElementById('office-liabilities');
+  var liabEl = document.getElementById('office-liabilities');
   if (liabEl) liabEl.value = row.liabilities || 0;
 
-  const transferEl = document.getElementById('office-transfer');
+  var transferEl = document.getElementById('office-transfer');
   if (transferEl) transferEl.value = row.transfer || "";
 
-  const descEl = document.getElementById('office-description');
+  var descEl = document.getElementById('office-description');
   if (descEl) descEl.value = row.description || "";
 
-  const titleEl = document.getElementById('office-form-title');
-  if (titleEl) titleEl.innerText = `Edit ${getExpenseBookContext().label} Expense Entry`;
+  var titleEl = document.getElementById('office-form-title');
+  if (titleEl) titleEl.innerText = 'Edit ' + getExpenseBookContext().label + ' Expense Entry';
 }
 
 async function deleteOfficeEntry(uniqueId) {
-  const ctx = getExpenseBookContext();
-  if (confirm(`ဤ ${ctx.label} Expense စာရင်းအား အပြီးတိုင် ဖျက်သိမ်းလိုပါသလား။`)) {
+  var ctx = getExpenseBookContext();
+  if (confirm('ဤ ' + ctx.label + ' Expense စာရင်းအား အပြီးတိုင် ဖျက်သိမ်းလိုပါသလား။')) {
     if (typeof showToast === 'function') showToast("SUCCESS", "စာရင်းကို ဖျက်သိမ်းနေပါသည်...");
     if (typeof toggleLoading === 'function') toggleLoading(true);
 
     try {
-      const response = await callApi('deleteExpenseEntry', {
+      var response = await callApi('deleteExpenseEntry', {
         uniqueId: uniqueId,
         bookName: ctx.bookName
       });
@@ -757,24 +764,24 @@ async function deleteOfficeEntry(uniqueId) {
 }
 
 function exportToCSVOffice() {
-  const data = window.OfficeState.activeData;
+  var data = window.OfficeState.activeData;
   if (!data || data.length === 0) {
     if (typeof showToast === 'function') showToast("ERROR", "ထုတ်ယူရန် မည်သည့်စာရင်းမျှ မရှိပါ။");
     return;
   }
 
-  let csv = "NO,DATE,CATEGORY,DESCRIPTION,UNIT,UNIT PRICE,METHOD,DEBIT,CREDIT,BALANCES,LIABILITIES,TRANSFER,VR NO,MY,FY,UNIQUEID\n";
-  data.forEach(row => {
-    let desc = `"${(row.description || '').replace(/"/g, '""')}"`;
-    let cat = `"${(row.category || '').replace(/"/g, '""')}"`;
-    csv += `${row.no || ''},${row.date || ''},${cat},${desc},${row.unit || 0},${row.unitPrice || 0},${row.method || ''},${row.debit || 0},${row.credit || 0},${row.balances || 0},${row.liabilities || 0},${row.transfer || ''},${row.vrNo || ''},${row.my || ''},${row.fy || ''},${row.uniqueId || ''}\n`;
+  var csv = "NO,DATE,CATEGORY,DESCRIPTION,UNIT,UNIT PRICE,METHOD,DEBIT,CREDIT,BALANCES,LIABILITIES,TRANSFER,VR NO,MY,FY,UNIQUEID\n";
+  data.forEach(function(row) {
+    var desc = '"' + (row.description || '').replace(/"/g, '""') + '"';
+    var cat = '"' + (row.category || '').replace(/"/g, '""') + '"';
+    csv += (row.no || '') + ',' + (row.date || '') + ',' + cat + ',' + desc + ',' + (row.unit || 0) + ',' + (row.unitPrice || 0) + ',' + (row.method || '') + ',' + (row.debit || 0) + ',' + (row.credit || 0) + ',' + (row.balances || 0) + ',' + (row.liabilities || 0) + ',' + (row.transfer || '') + ',' + (row.vrNo || '') + ',' + (row.my || '') + ',' + (row.fy || '') + ',' + (row.uniqueId || '') + '\n';
   });
 
-  const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement("a");
-  const url = URL.createObjectURL(blob);
+  var blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+  var link = document.createElement("a");
+  var url = URL.createObjectURL(blob);
   link.setAttribute("href", url);
-  link.setAttribute("download", `office_expense_${new Date().toISOString().slice(0,10)}.csv`);
+  link.setAttribute("download", 'office_expense_' + new Date().toISOString().slice(0,10) + '.csv');
   link.style.visibility = 'hidden';
   document.body.appendChild(link);
   link.click();
