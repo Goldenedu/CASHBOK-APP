@@ -26,7 +26,7 @@ function escapeHtml(str) {
   return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
+    .replace/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
@@ -35,7 +35,7 @@ function escapeHtml(str) {
  * 💡 Switch between Office and Kitchen Expense Books
  */
 function switchExpenseBook(bookType) {
-  window.currentExpenseBook = bookType.toLowerCase();
+  window.currentExpenseBook = bookType ? bookType.toLowerCase() : 'office';
   loadOfficeData(false);
 }
 
@@ -45,7 +45,7 @@ function switchExpenseBook(bookType) {
 function getExpenseBookContext() {
   const isKitchen = (window.currentExpenseBook === 'kitchen' || window.AppState?.currentModule === 'kitchen');
   return {
-    isKitchen,
+    isKitchen: isKitchen,
     bookName: isKitchen ? 'Kitchen Exp Book' : 'Office Exp Book',
     dropdownKey: isKitchen ? 'kitchenExpBook' : 'officeExpBook',
     label: isKitchen ? 'Kitchen' : 'Office'
@@ -142,14 +142,12 @@ async function fetchUniformProductsListOffice() {
   const select = document.getElementById('office-product-id');
   if (!select) return;
 
-  // 1. Memory / Cache ထဲတွင် ရှိပြီးပါက ချက်ချင်း ရေးဆွဲမည်
   let localProducts = getAvailableUniformProducts();
   if (localProducts.length > 0) {
     buildUniformDropdownOptions(localProducts);
     return;
   }
 
-  // 2. Cache ထဲမရှိပါက D1 Database (getUniformData) မှ တိုက်ရိုက် လှမ်းယူမည်
   select.innerHTML = `<option value="">Loading Products from Uniform Ledger...</option>`;
   try {
     let res = null;
@@ -172,14 +170,13 @@ async function fetchUniformProductsListOffice() {
 /**
  * 💡 Strict Filter Function for Office Expenses (Client-side Search Backup)
  */
-function filterOfficeData(list = [], searchVal = '', fromDate = '', toDate = '') {
-  return list.filter(row => {
-    // 1. Date Range Check
+function filterOfficeData(list, searchVal, fromDate, toDate) {
+  const safeList = Array.isArray(list) ? list : [];
+  return safeList.filter(row => {
     if (typeof window.isDateInRange === 'function') {
       if (!window.isDateInRange(row.date, fromDate, toDate)) return false;
     }
 
-    // 2. Text Search Check
     if (!searchVal || !searchVal.trim()) return true;
     const q = searchVal.trim().toLowerCase();
     const desc = String(row.description || '').toLowerCase();
@@ -234,7 +231,8 @@ async function populateDropdownsOffice() {
  * 💡 Dynamic Form Controls based on Selected Category
  */
 async function onCategoryChangeOffice() {
-  const category = document.getElementById('office-category') ? document.getElementById('office-category').value : '';
+  const catEl = document.getElementById('office-category');
+  const category = catEl ? catEl.value : '';
 
   const prodContainer = document.getElementById('office-product-container');
   const profitPreviewContainer = document.getElementById('office-profit-preview-container');
@@ -261,7 +259,6 @@ async function onCategoryChangeOffice() {
     if (methodSelect) methodSelect.disabled = false;
     if (transSelect) transSelect.disabled = false;
 
-    // Fetch Uniform Ledger Data & Populate Select
     await fetchUniformProductsListOffice();
     onProductChangeOffice();
   } 
@@ -308,7 +305,8 @@ function onTransferTargetChangeOffice() {
  * 💡 Handle Product Selection for Advance Uniform
  */
 function onProductChangeOffice() {
-  const productId = document.getElementById('office-product-id') ? document.getElementById('office-product-id').value : '';
+  const prodEl = document.getElementById('office-product-id');
+  const productId = prodEl ? prodEl.value : '';
   const stockBadge = document.getElementById('office-stock-badge');
   const unitEl = document.getElementById('office-unit');
   const unit = parseCleanNum(unitEl ? unitEl.value : 1) || 1;
@@ -355,7 +353,8 @@ function calculateDebitOffice() {
   const category = categoryEl ? categoryEl.value : '';
 
   if (category === "Advance Uniform" || category === "Advance Unifrom") {
-    const productId = document.getElementById('office-product-id') ? document.getElementById('office-product-id').value : '';
+    const prodEl = document.getElementById('office-product-id');
+    const productId = prodEl ? prodEl.value : '';
     const unitEl = document.getElementById('office-unit');
     const unit = parseCleanNum(unitEl ? unitEl.value : 0);
     const unitPrice = parseCleanNum(document.getElementById('office-unit-price')?.value);
@@ -397,7 +396,7 @@ function calculateDebitOffice() {
 /**
  * 💡 Load Expense Data from Cloudflare D1 Backend
  */
-async function loadOfficeData(isSilent = false, forceRefresh = false) {
+async function loadOfficeData(isSilent, forceRefresh) {
   const state = window.OfficeState;
   const ctx = getExpenseBookContext();
   const bookName = ctx.bookName;
@@ -608,9 +607,6 @@ function parseLiabilityAmount(val) {
   return isNeg ? -num : num;
 }
 
-/**
- * 💡 Save / Update Expense Entry (Calculates Uniform Profit + Refreshes D1 State)
- */
 async function saveOfficeForm(e) {
   if (e && e.preventDefault) e.preventDefault();
 
@@ -688,48 +684,48 @@ async function saveOfficeForm(e) {
   }
 }
 
-function editOfficeEntry(uniqueId) {
+async function editOfficeEntry(uniqueId) {
   const row = window.OfficeState.activeData.find(item => item.uniqueId === uniqueId);
   if (!row) {
     if (typeof showToast === 'function') showToast("ERROR", "မူရင်းဒေတာကို ရှာမတွေ့ပါ။");
     return;
   }
 
-  openAddModalOffice().then(() => {
-    const uidEl = document.getElementById('office-uniqueId');
-    if (uidEl) uidEl.value = row.uniqueId;
+  await openAddModalOffice();
 
-    const dateEl = document.getElementById('office-date');
-    if (dateEl) dateEl.value = row.date;
+  const uidEl = document.getElementById('office-uniqueId');
+  if (uidEl) uidEl.value = row.uniqueId;
 
-    const catEl = document.getElementById('office-category');
-    if (catEl) catEl.value = row.category;
+  const dateEl = document.getElementById('office-date');
+  if (dateEl) dateEl.value = row.date;
 
-    if (document.getElementById('office-product-id')) document.getElementById('office-product-id').value = row.id || "";
-    if (document.getElementById('office-unit')) document.getElementById('office-unit').value = row.unit || 1;
-    if (document.getElementById('office-unit-price')) document.getElementById('office-unit-price').value = row.unitPrice || 0;
-    
-    const methodEl = document.getElementById('office-method');
-    if (methodEl) methodEl.value = row.method || "Cash";
+  const catEl = document.getElementById('office-category');
+  if (catEl) catEl.value = row.category;
 
-    const debitEl = document.getElementById('office-debit');
-    if (debitEl) debitEl.value = row.debit || 0;
+  if (document.getElementById('office-product-id')) document.getElementById('office-product-id').value = row.id || "";
+  if (document.getElementById('office-unit')) document.getElementById('office-unit').value = row.unit || 1;
+  if (document.getElementById('office-unit-price')) document.getElementById('office-unit-price').value = row.unitPrice || 0;
+  
+  const methodEl = document.getElementById('office-method');
+  if (methodEl) methodEl.value = row.method || "Cash";
 
-    const creditEl = document.getElementById('office-credit');
-    if (creditEl) creditEl.value = row.credit || 0;
+  const debitEl = document.getElementById('office-debit');
+  if (debitEl) debitEl.value = row.debit || 0;
 
-    const liabEl = document.getElementById('office-liabilities');
-    if (liabEl) liabEl.value = row.liabilities || 0;
+  const creditEl = document.getElementById('office-credit');
+  if (creditEl) creditEl.value = row.credit || 0;
 
-    const transferEl = document.getElementById('office-transfer');
-    if (transferEl) transferEl.value = row.transfer || "";
+  const liabEl = document.getElementById('office-liabilities');
+  if (liabEl) liabEl.value = row.liabilities || 0;
 
-    const descEl = document.getElementById('office-description');
-    if (descEl) descEl.value = row.description || "";
+  const transferEl = document.getElementById('office-transfer');
+  if (transferEl) transferEl.value = row.transfer || "";
 
-    const titleEl = document.getElementById('office-form-title');
-    if (titleEl) titleEl.innerText = `Edit ${getExpenseBookContext().label} Expense Entry`;
-  });
+  const descEl = document.getElementById('office-description');
+  if (descEl) descEl.value = row.description || "";
+
+  const titleEl = document.getElementById('office-form-title');
+  if (titleEl) titleEl.innerText = `Edit ${getExpenseBookContext().label} Expense Entry`;
 }
 
 async function deleteOfficeEntry(uniqueId) {
@@ -771,4 +767,36 @@ function exportToCSVOffice() {
   data.forEach(row => {
     let desc = `"${(row.description || '').replace(/"/g, '""')}"`;
     let cat = `"${(row.category || '').replace(/"/g, '""')}"`;
-    csv += `${row.no || ''},${row.date ||
+    csv += `${row.no || ''},${row.date || ''},${cat},${desc},${row.unit || 0},${row.unitPrice || 0},${row.method || ''},${row.debit || 0},${row.credit || 0},${row.balances || 0},${row.liabilities || 0},${row.transfer || ''},${row.vrNo || ''},${row.my || ''},${row.fy || ''},${row.uniqueId || ''}\n`;
+  });
+
+  const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  link.setAttribute("href", url);
+  link.setAttribute("download", `office_expense_${new Date().toISOString().slice(0,10)}.csv`);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+// 💡 EXPOSE GLOBALLY
+window.loadOfficeData = loadOfficeData;
+window.openAddModalOffice = openAddModalOffice;
+window.closeOfficeModal = closeOfficeModal;
+window.saveOfficeForm = saveOfficeForm;
+window.editOfficeEntry = editOfficeEntry;
+window.deleteOfficeEntry = deleteOfficeEntry;
+window.exportToCSVOffice = exportToCSVOffice;
+window.onCategoryChangeOffice = onCategoryChangeOffice;
+window.onTransferTargetChangeOffice = onTransferTargetChangeOffice;
+window.onProductChangeOffice = onProductChangeOffice;
+window.calculateDebitOffice = calculateDebitOffice;
+window.onSearchInputOffice = onSearchInputOffice;
+window.clearDateFilterOffice = clearDateFilterOffice;
+window.changePageOffice = changePageOffice;
+window.switchExpenseBook = switchExpenseBook;
+window.getExpenseBookContext = getExpenseBookContext;
+window.updateOfficeAddButtonLabel = updateOfficeAddButtonLabel;
+window.fetchUniformProductsListOffice = fetchUniformProductsListOffice;
