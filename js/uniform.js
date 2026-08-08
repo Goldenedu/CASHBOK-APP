@@ -1,6 +1,6 @@
 /**
  * GOLDEN ERP SYSTEM - UNIFORM INVENTORY LEDGER MODULE 
- * File: js/uniform.js
+ * File: js/uniform.js 
  * 💡 Uniform Inventory Ledger with Strict Search Criteria (PID, Name, Type, Size) & Auto PID Engine
  */
 
