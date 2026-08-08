@@ -1,7 +1,7 @@
 /**
  * GOLDEN ERP SYSTEM - MAIN INCOME BOOK MODULE
  * File: js/income.js
- * 💡 Features: Student List Auto-Lookup Fix, Promo Matrix AUT Rate Calculator, Split Payment & Receipt Printer
+ * 💡 Features: Unified FYID Format (2627-STU-0001), D1 `student_id` Lookup Fix, Promo Matrix Rate Calculator, Split Payment & Receipt Printer
  */
 
 var incomePage = 1;
@@ -34,6 +34,20 @@ function parseCleanNum(val) {
   var str = String(val).replace(/,/g, '').trim();
   var num = parseFloat(str);
   return isNaN(num) ? 0 : num;
+}
+
+/**
+ * 💡 System-Wide FY Short Code Generator (Format: 2026-2027 -> 2627)
+ */
+function getFyShortCode(fyStr) {
+  if (!fyStr) return '2627';
+  var parts = String(fyStr).split(/[-/]/);
+  if (parts.length >= 2) {
+    var y1 = parts[0].trim().slice(-2);
+    var y2 = parts[1].trim().slice(-2);
+    return y1 + y2;
+  }
+  return '2627';
 }
 
 /**
@@ -102,7 +116,7 @@ async function loadIncomeData(isSilent, forceRefresh) {
     });
 
     if (!res || !res.success) {
-      throw new Error(res?.message || "ဝင်ငွေစာရင်း အချက်အလက်များ ခေါ်ယူခြင်း မအောင်မြင်ပါ။");
+      throw new Error(res?.message || "ဝင်ငွေစာရင်း အချက်အလုပ်များ ခေါ်ယူခြင်း မအောင်မြင်ပါ။");
     }
 
     incomeActiveData = res.data || [];
@@ -205,26 +219,30 @@ function renderTableIncome() {
 }
 
 /**
- * 💡 Auto Student Lookup Fix (Direct Student Directory Cache Match)
+ * 💡 Auto Student Lookup Fix (Unified FYID Format: 2627-STU-0001 & D1 student_id property)
  */
 async function onStudentIdOrFYChangeIncome() {
-  var fyVal = document.getElementById('inc-fy')?.value;
+  var fyVal = document.getElementById('inc-fy')?.value || '2026-2027';
   var idVal = document.getElementById('inc-id-search')?.value.trim();
-
-  if (!fyVal || !idVal) return;
-
-  var parts = fyVal.split("-");
-  var fyShort = parts[0].slice(-2) + "-" + (parts[1] ? parts[1].slice(-2) : "");
-  var paddedId = String(idVal).padStart(4, '0');
-  var targetFyid = "ID " + fyShort + " " + paddedId;
 
   var fyidShow = document.getElementById('inc-fyid-show');
   var fyidNameShow = document.getElementById('inc-fyidname-show');
 
+  if (!idVal) {
+    if (fyidShow) fyidShow.value = "";
+    if (fyidNameShow) fyidNameShow.value = "";
+    return;
+  }
+
+  // 💡 Generate Unified FYID Format (e.g. 2627-STU-0001)
+  var fyShort = getFyShortCode(fyVal);
+  var paddedId = String(idVal).padStart(4, '0');
+  var targetFyid = `${fyShort}-STU-${paddedId}`;
+
   if (!allStudentsLookupCache) {
     if (fyidNameShow) fyidNameShow.value = "ကျောင်းသား စာရင်း ရှာဖွေနေပါသည်...";
     try {
-      var res = await callApi('getStudentData', { page: 1, limit: 5000 });
+      var res = await callApi('getStudentData', { page: 1, limit: 5000 }, 'GET');
       if (res && res.success) {
         allStudentsLookupCache = res.data || [];
       }
@@ -233,16 +251,27 @@ async function onStudentIdOrFYChangeIncome() {
     }
   }
 
-  // 💡 Robust matching by FYID, Student ID, or Numeric ID
-  var student = (allStudentsLookupCache || []).find(function(s) {
+  var list = allStudentsLookupCache || [];
+  var targetFyLower = fyVal.toLowerCase().trim();
+
+  // 💡 Match by FYID OR (student_id + Selected FY)
+  var student = list.find(function(s) {
     var sFyid = String(s.fyid || '').toLowerCase().trim();
-    var sId = String(s.id || '').trim();
-    return sFyid === targetFyid.toLowerCase() || sId === String(idVal) || parseInt(sId, 10) === parseInt(idVal, 10);
+    var sStudentId = String(s.student_id ?? s.studentId ?? s.id ?? '').trim();
+    var sFy = String(s.fy || '').toLowerCase().trim();
+
+    var fyidMatches = (sFyid === targetFyid.toLowerCase());
+    var idAndFyMatches = (sStudentId === String(idVal) && (sFy === targetFyLower || !sFy));
+
+    return fyidMatches || idAndFyMatches;
   });
 
   if (student) {
-    if (fyidShow) fyidShow.value = student.fyid || targetFyid;
-    if (fyidNameShow) fyidNameShow.value = student.fyidName || student.name || '';
+    var actualFyid = student.fyid || targetFyid;
+    var actualName = student.name || student.fyidName || student.fyid_name || '';
+
+    if (fyidShow) fyidShow.value = actualFyid;
+    if (fyidNameShow) fyidNameShow.value = actualName;
 
     var classEl = document.getElementById('inc-class');
     var catEl = document.getElementById('inc-category');
@@ -257,9 +286,9 @@ async function onStudentIdOrFYChangeIncome() {
     if (fyidShow) fyidShow.value = targetFyid;
     if (fyidNameShow) fyidNameShow.value = "ကျောင်းသား စာရင်း ရှာမတွေ့ပါ။";
     
-    document.getElementById('inc-class').value = "";
-    document.getElementById('inc-promo').value = "";
-    document.getElementById('inc-autamount').value = 0;
+    if (document.getElementById('inc-class')) document.getElementById('inc-class').value = "";
+    if (document.getElementById('inc-promo')) document.getElementById('inc-promo').value = "";
+    if (document.getElementById('inc-autamount')) document.getElementById('inc-autamount').value = 0;
   }
 }
 
