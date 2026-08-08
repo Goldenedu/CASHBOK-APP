@@ -32,6 +32,33 @@ function escapeHtml(str) {
 }
 
 /**
+ * 💡 Extract Product ID from Description String
+ * Description Example: "PID 001 Basic Class Pair - 2Nos"
+ * Returns: "PID 001" or "001"
+ */
+function extractProductIdFromDescription(description) {
+  if (!description) return null;
+  var str = String(description).trim();
+  
+  var match = str.match(/PID\s*(\d+)/i);
+  if (match && match[1]) {
+    return 'PID ' + match[1].trim();
+  }
+  
+  var pidMatch = str.match(/^([A-Z0-9]+)\s/);
+  if (pidMatch && pidMatch[1]) {
+    return pidMatch[1];
+  }
+  
+  var numMatch = str.match(/^(\d+)\s/);
+  if (numMatch && numMatch[1]) {
+    return numMatch[1];
+  }
+  
+  return null;
+}
+
+/**
  * 💡 Switch between Office and Kitchen Expense Books
  */
 function switchExpenseBook(bookType) {
@@ -62,7 +89,7 @@ function updateOfficeAddButtonLabel() {
 }
 
 /**
- * 💡 Safe Comma String Number Parser (Fixes "25,000" -> 25000 Parsing Issue)
+ * 💡 Safe Comma String Number Parser
  */
 function parseCleanNum(val) {
   if (val === undefined || val === null || val === '') return 0;
@@ -73,7 +100,7 @@ function parseCleanNum(val) {
 }
 
 /**
- * 💡 Helper to normalize Uniform Item Properties (Stock = Exact CURRENT QTY)
+ * 💡 Helper to normalize Uniform Item Properties (Stock = CURRENT QTY)
  */
 function getUniformItemProps(p) {
   if (!p) return { id: '', name: '', type: '', size: '', unitPrice: 0, sellingPrice: 0, stock: 0, uniqueKey: '' };
@@ -106,7 +133,7 @@ function getUniformItemProps(p) {
 }
 
 /**
- * 💡 Single Source of Truth for Uniform Products (OfficeState Cache OR UniformState Memory)
+ * 💡 Single Source of Truth for Uniform Products
  */
 function getAvailableUniformProducts() {
   if (window.OfficeState.uniformProducts && window.OfficeState.uniformProducts.length > 0) {
@@ -711,7 +738,7 @@ async function saveOfficeForm(e) {
 }
 
 /**
- * 💡 EDIT OFFICE ENTRY (Restoration Fix)
+ * 💡 EDIT OFFICE ENTRY (Product ID RegEx Auto-Detection Fix)
  */
 async function editOfficeEntry(uniqueId) {
   var row = window.OfficeState.activeData.find(function(item) { return item.uniqueId === uniqueId; });
@@ -720,7 +747,7 @@ async function editOfficeEntry(uniqueId) {
     return;
   }
 
-  // 1. Modal ပွင့်ပြီး Dropdown Options များ ၁၀၀% ပြည့်စုံအောင် စောင့်ပါ
+  // 1. Modal ပွင့်အောင် ခေါ်ယူပါ
   await openAddModalOffice();
 
   var uidEl = document.getElementById('office-uniqueId');
@@ -729,33 +756,46 @@ async function editOfficeEntry(uniqueId) {
   var dateEl = document.getElementById('office-date');
   if (dateEl) dateEl.value = row.date;
 
-  // 2. Category ကို သတ်မှတ်ပါ
+  // 2. Category သတ်မှတ်ပြီး Dynamic Controls ပွင့်စေပါ
   var catEl = document.getElementById('office-category');
   if (catEl) {
     catEl.value = row.category;
     await onCategoryChangeOffice();
   }
 
-  // 3. Select Dropdown မှ မူလ Product ID ကို ရှာဖွေပြီး အတိအကျ ပြန်လည် ရွေးချယ်ပေးပါ
+  // 3. Product ID Auto-Detection & Dropdown Selection (RegEx Extraction Strategy)
   var prodSelect = document.getElementById('office-product-id');
-  if (prodSelect && row.id) {
-    var matchingOpt = Array.from(prodSelect.options).find(function(opt) {
-      return opt.value === row.id || opt.getAttribute('data-pid') === row.id || opt.value.startsWith(row.id + '|');
-    });
-    if (matchingOpt) {
-      prodSelect.value = matchingOpt.value;
-    } else {
-      prodSelect.value = row.id;
+  if (prodSelect) {
+    var extractedPid = extractProductIdFromDescription(row.description);
+    var pidToSearch = (row.id && String(row.id).trim()) ? String(row.id).trim() : extractedPid;
+    
+    if (pidToSearch && pidToSearch.trim()) {
+      var searchTerm = pidToSearch.trim().toLowerCase();
+      
+      var matchingOpt = Array.from(prodSelect.options).find(function(opt) {
+        var optValue = (opt.value || '').toLowerCase();
+        var optDataPid = (opt.getAttribute('data-pid') || '').toLowerCase();
+        var optText = (opt.text || '').toLowerCase();
+        
+        return optValue.includes(searchTerm) || 
+               optDataPid.includes(searchTerm) || 
+               optText.includes(searchTerm);
+      });
+      
+      if (matchingOpt) {
+        prodSelect.value = matchingOpt.value;
+      }
     }
   }
 
+  // 4. Unit, Unit Price များကို ဖြည့်ဆည်းပါ
   var unitEl = document.getElementById('office-unit');
   if (unitEl) unitEl.value = row.unit || 1;
 
   var unitPriceEl = document.getElementById('office-unit-price');
   if (unitPriceEl) unitPriceEl.value = row.unitPrice || 0;
 
-  // 💡 Stock Badge နှင့် Calculated Profit Preview ကို ပြန်လည် တွက်ချက်ပြသစေပါ
+  // 💡 Stock Badge နှင့် Calculated Profit Preview ကို Auto-recalculate လုပ်ခိုင်းပါ
   onProductChangeOffice();
 
   var methodEl = document.getElementById('office-method');
@@ -834,6 +874,7 @@ function exportToCSVOffice() {
 }
 
 // 💡 EXPOSE GLOBALLY
+window.extractProductIdFromDescription = extractProductIdFromDescription;
 window.loadOfficeData = loadOfficeData;
 window.openAddModalOffice = openAddModalOffice;
 window.closeOfficeModal = closeOfficeModal;
