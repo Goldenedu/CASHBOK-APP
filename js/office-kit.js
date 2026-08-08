@@ -42,7 +42,7 @@ function extractProductIdFromDescription(description) {
   
   var match = str.match(/PID\s*(\d+)/i);
   if (match && match[1]) {
-    return 'PID ' + match[1].trim();
+    return match[1].trim(); // ✅ Just the number
   }
   
   var pidMatch = str.match(/^([A-Z0-9]+)\s/);
@@ -763,24 +763,26 @@ async function editOfficeEntry(uniqueId) {
     await onCategoryChangeOffice();
   }
 
-  // 3. Product ID Auto-Detection & Dropdown Selection (RegEx Extraction Strategy)
-  var prodSelect = document.getElementById('office-product-id');
-  if (prodSelect) {
-    var extractedPid = extractProductIdFromDescription(row.description);
-    var pidToSearch = (row.id && String(row.id).trim()) ? String(row.id).trim() : extractedPid;
+  // 3. Product ID Auto-Detection & Dropdown Selection
+var prodSelect = document.getElementById('office-product-id');
+if (prodSelect) {
+  var extractedPid = extractProductIdFromDescription(row.description);
+  var pidToSearch = (row.id && String(row.id).trim()) ? String(row.id).trim() : extractedPid;
+  
+  if (pidToSearch && pidToSearch.trim()) {
+    // ✅ Safety cleanup: remove "PID " prefix if present
+    pidToSearch = pidToSearch.replace(/^PID\s*/i, '').trim();
+    var searchTerm = pidToSearch.toLowerCase();
     
-    if (pidToSearch && pidToSearch.trim()) {
-      var searchTerm = pidToSearch.trim().toLowerCase();
+    var matchingOpt = Array.from(prodSelect.options).find(function(opt) {
+      var optValue = (opt.value || '').toLowerCase();
+      var optDataPid = (opt.getAttribute('data-pid') || '').toLowerCase();
+      var optText = (opt.text || '').toLowerCase();
       
-      var matchingOpt = Array.from(prodSelect.options).find(function(opt) {
-        var optValue = (opt.value || '').toLowerCase();
-        var optDataPid = (opt.getAttribute('data-pid') || '').toLowerCase();
-        var optText = (opt.text || '').toLowerCase();
-        
-        return optValue.includes(searchTerm) || 
-               optDataPid.includes(searchTerm) || 
-               optText.includes(searchTerm);
-      });
+      return optValue.includes(searchTerm) || 
+             optDataPid === searchTerm ||  // ✅ Exact match added
+             optText.includes(searchTerm);
+    });
       
       if (matchingOpt) {
         prodSelect.value = matchingOpt.value;
