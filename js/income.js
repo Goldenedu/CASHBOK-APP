@@ -8,7 +8,7 @@ var incomePage = 1;
 var incomeLimit = 50;
 var incomeTotalRows = 0;
 var incomeActiveData = [];
-var studentsByFyCache = {}; // 💡 FY-Scoped Student Cache Object
+var studentsByFyCache = {};
 var promoMatrixCache = null;
 var searchTimeoutIncome = null;
 
@@ -263,7 +263,7 @@ async function onStudentIdOrFYChangeIncome() {
   var paddedId = String(idVal).padStart(4, '0');
   var targetFyid = `${fyShort}-STU-${paddedId}`;
 
-  // 💡 FY-Scoped Cache Fetching (Fetches strictly for selected FY: SELECT * FROM student WHERE fy = ?)
+  // FY-Scoped Cache Fetching
   if (!studentsByFyCache[fyVal]) {
     if (fyidNameShow) fyidNameShow.value = "ကျောင်းသား စာရင်း ရှာဖွေနေပါသည်...";
     try {
