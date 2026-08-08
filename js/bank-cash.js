@@ -43,12 +43,10 @@ function parseCleanNum(val) {
 function filterBankCashKitData(list, searchVal, fromDate, toDate) {
   var safeList = Array.isArray(list) ? list : [];
   return safeList.filter(function(row) {
-    // 1. Date Range Check
     if (typeof window.isDateInRange === 'function') {
       if (!window.isDateInRange(row.date, fromDate, toDate)) return false;
     }
 
-    // 2. Strict Text Search Check (Description, Category, Debit, Credit ONLY)
     if (!searchVal || !searchVal.trim()) return true;
     var q = searchVal.trim().toLowerCase();
     var descMatch = String(row.description || '').toLowerCase().includes(q);
@@ -157,8 +155,7 @@ function renderStatsBankCashKit(stats) {
 }
 
 /**
- * 💡 Render Table Grid Rows (Integer NO Fix Applied)
- * 🎯 Criteria: Search ONLY by Description, Category, Debit, Credit
+ * 💡 Render Table Grid Rows (Integer NO Fix)
  */
 function renderTableBankCashKit() {
   var tbody = document.getElementById('bck-table-body');
@@ -192,7 +189,6 @@ function renderTableBankCashKit() {
     var creditStr = row.credit > 0 ? Number(row.credit).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '-';
     var balStr = Number(row.balances || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
-    // 💡 Integer NO Fix (Displays 1, 2, 3 instead of 1.0)
     var displayNo = Math.floor(parseCleanNum(row.no || row.id)) || 1;
 
     return '<tr class="hover:bg-slate-800/30 text-slate-300">' +
@@ -258,21 +254,26 @@ function closeBankCashKitModal() {
 }
 
 /**
- * 💡 Dropdown Options များကို စာအုပ်အမျိုးအစားအလိုက် စနစ်တကျ Filter ပြုလုပ်၍ ဖြည့်ပေးခြင်း
+ * 💡 Dropdown Options ဖြည့်ဆည်းခြင်း (Uses window.DROPDOWNS and window.CONFIG)
  */
 function populateDropdownsBCK() {
   var catSelect = document.getElementById('bck-category');
   var methodSelect = document.getElementById('bck-method');
   var transferSelect = document.getElementById('bck-transfer');
 
+  var key = currentSubBook === 'bank' ? 'bankBook' : 'cashBook';
+  var def = (window.DROPDOWNS && window.DROPDOWNS[key]) || {};
+
   if (catSelect) {
-    catSelect.innerHTML = 
-      '<option value="Opening">Opening</option>' +
-      '<option value="Income">Income</option>' +
-      '<option value="Expense">Expense</option>' +
-      '<option value="Bank Loan">Bank Loan</option>' +
-      '<option value="Cash Loan">Cash Loan</option>' +
-      '<option value="Transfer">Transfer</option>';
+    if (def.category) {
+      catSelect.innerHTML = def.category.map(function(c) { return '<option value="' + c + '">' + c + '</option>'; }).join('');
+    } else {
+      catSelect.innerHTML = 
+        '<option value="Opening">Opening</option>' +
+        '<option value="Income">Income</option>' +
+        '<option value="Expense">Expense</option>' +
+        '<option value="Transfer">Transfer</option>';
+    }
   }
 
   if (methodSelect) {
@@ -281,7 +282,7 @@ function populateDropdownsBCK() {
       '<option value="Cash" ' + (currentSubBook === 'cash' ? 'selected' : '') + '>Cash</option>';
   }
 
-  // 💡 SELF-TRANSFER PREVENT: Filter out current active book from transfer options
+  // 💡 SELF-TRANSFER PREVENT: Filter out active book
   if (transferSelect) {
     var allBooks = [
       { name: "Main Bank Book", key: "bank" },
@@ -321,7 +322,7 @@ function autoFillTransferDescriptionBCK() {
 }
 
 /**
- * 💡 Save / Submit Entry (Add or Update)
+ * 💡 Save / Submit Entry
  */
 async function saveBankCashKitForm(e) {
   if (e && e.preventDefault) e.preventDefault();
@@ -422,7 +423,7 @@ async function deleteBankCashKitEntry(uniqueId) {
       throw new Error(res?.message || "ဖျက်သိမ်းမှု မအောင်မြင်ပါ။");
     }
   } catch (err) {
-    if (typeof toggleLoading === 'function') showToast("ERROR", "ဖျက်သိမ်းမှု အမှား: " + err.message);
+    if (typeof showToast === 'function') showToast("ERROR", "ဖျက်သိမ်းမှု အမှား: " + err.message);
   } finally {
     if (typeof toggleLoading === 'function') toggleLoading(false);
   }
