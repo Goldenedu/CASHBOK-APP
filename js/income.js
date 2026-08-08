@@ -2,6 +2,10 @@
  * GOLDEN ERP SYSTEM - MAIN INCOME BOOK MODULE
  * File: js/income.js
  * 💡 Features: Unified FYID Format (2627-STU-0001), D1 `student_id` Lookup Fix, Promo Matrix Rate Calculator, Split Payment & Receipt Printer
+ * 🛠 PATCHED: onStudentIdOrFYChangeIncome() lookup now normalizes numeric IDs & FYID strings so legacy
+ *            D1 rows with ".0" decimal artifacts (e.g. "1.0" instead of "1", or "2627-STU-2.0" instead
+ *            of "2627-STU-0002") still match correctly. This was the cause of "ကျောင်းသား စာရင်း ရှာမတွေ့ပါ"
+ *            appearing even when the student clearly exists in the Student List.
  */
 
 var incomePage = 1;
@@ -37,6 +41,16 @@ function parseCleanNum(val) {
 }
 
 /**
+ * 💡 Safe Integer ID Parser (Fixes D1/Sheets ".0" decimal artifacts, e.g. "1.0" -> 1, "0001" -> 1)
+ */
+function parseCleanIntId(val) {
+  if (val === undefined || val === null || val === '') return NaN;
+  if (typeof val === 'number') return isNaN(val) ? NaN : Math.trunc(val);
+  var n = parseInt(String(val).trim(), 10);
+  return isNaN(n) ? NaN : n;
+}
+
+/**
  * 💡 System-Wide FY Short Code Generator (Format: 2026-2027 -> 2627)
  */
 function getFyShortCode(fyStr) {
@@ -48,6 +62,24 @@ function getFyShortCode(fyStr) {
     return y1 + y2;
   }
   return '2627';
+}
+
+/**
+ * 💡 FYID Sanitizer (Cleans decimal artifacts e.g. "2627-STU-02.0" -> "2627-STU-0002")
+ * Mirrors the same-purpose sanitizer already used for display in js/student.js, but reused here
+ * so the LOOKUP comparison (not just the display) is resilient to malformed legacy data.
+ */
+function sanitizeFyidStr(fyidStr) {
+  var s = String(fyidStr || '').trim();
+  if (!s) return s;
+  if (s.indexOf('.0') === -1) return s;
+  var cleaned = s.replace(/\.0/g, '');
+  var parts = cleaned.split('-STU-');
+  if (parts.length === 2) {
+    var numPart = parseInt(parts[1], 10) || 0;
+    return parts[0] + '-STU-' + String(numPart).padStart(4, '0');
+  }
+  return cleaned;
 }
 
 /**
@@ -220,6 +252,14 @@ function renderTableIncome() {
 
 /**
  * 💡 Auto Student Lookup Fix (Unified FYID Format: 2627-STU-0001 & D1 student_id property)
+ * 🛠 PATCHED MATCHING LOGIC:
+ *   - Student IDs are compared as NUMBERS (parseCleanIntId) instead of raw strings, so legacy
+ *     D1/Sheets rows stored as "1.0" still match a typed "1".
+ *   - FYID strings are sanitized (sanitizeFyidStr) before comparing, so "2627-STU-2.0" still
+ *     matches the freshly generated "2627-STU-0002".
+ *   - FY comparison now falls back to comparing the normalized FY SHORT CODE (e.g. "2627") in
+ *     addition to the raw FY string, so minor formatting differences ("2026-2027" vs "FY 2026-2027")
+ *     no longer block a valid match.
  */
 async function onStudentIdOrFYChangeIncome() {
   var fyVal = document.getElementById('inc-fy')?.value || '2026-2027';
@@ -253,15 +293,23 @@ async function onStudentIdOrFYChangeIncome() {
 
   var list = allStudentsLookupCache || [];
   var targetFyLower = fyVal.toLowerCase().trim();
+  var idValNum = parseCleanIntId(idVal);
 
-  // 💡 Match by FYID OR (student_id + Selected FY)
+  // 💡 Match by FYID (sanitized) OR (student_id + Selected FY), both normalized to survive
+  //    ".0" decimal artifacts and minor FY string formatting differences from legacy D1 rows.
   var student = list.find(function(s) {
-    var sFyid = String(s.fyid || '').toLowerCase().trim();
-    var sStudentId = String(s.student_id ?? s.studentId ?? s.id ?? '').trim();
+    var sFyid = sanitizeFyidStr(s.fyid).toLowerCase();
+    var sStudentIdNum = parseCleanIntId(s.student_id ?? s.studentId ?? s.id);
     var sFy = String(s.fy || '').toLowerCase().trim();
+    var sFyShort = getFyShortCode(s.fy);
 
     var fyidMatches = (sFyid === targetFyid.toLowerCase());
-    var idAndFyMatches = (sStudentId === String(idVal) && (sFy === targetFyLower || !sFy));
+    var idAndFyMatches = (
+      !isNaN(sStudentIdNum) &&
+      !isNaN(idValNum) &&
+      sStudentIdNum === idValNum &&
+      (sFy === targetFyLower || sFyShort === fyShort || !s.fy)
+    );
 
     return fyidMatches || idAndFyMatches;
   });
