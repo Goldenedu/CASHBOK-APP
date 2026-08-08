@@ -4,8 +4,6 @@
  * 💡 Central System Configuration, API Endpoints, Sheet Schemas & Dropdown Master Lists
  */
 
-window.START_ROW = 6;
-
 window.BOOK_MAP = {
   // Main Master Books
   "Bank Book": "bank",
