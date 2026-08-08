@@ -91,7 +91,6 @@ function getUniformItemProps(p) {
     ? parseCleanNum(p.current_qty) 
     : ((p.currentQty !== undefined && p.currentQty !== null) ? parseCleanNum(p.currentQty) : (openStock - sellUnit));
 
-  // Compound key to distinguish same PID with different Size/Type
   var uniqueKey = p.uniqueid || p.uniqueId || (String(pid).trim() + '|' + String(psize).trim() + '|' + String(ptype).trim());
 
   return {
@@ -636,7 +635,6 @@ async function saveOfficeForm(e) {
   var prodEl = document.getElementById('office-product-id');
   var selectedKey = prodEl ? prodEl.value : '';
   
-  // Extract clean product ID
   var selectedOpt = prodEl && prodEl.selectedIndex >= 0 ? prodEl.options[prodEl.selectedIndex] : null;
   var cleanPid = selectedOpt ? (selectedOpt.getAttribute('data-pid') || selectedKey) : selectedKey;
 
