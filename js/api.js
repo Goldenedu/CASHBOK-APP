@@ -1,10 +1,10 @@
 /**
- * GOLDEN ERP SYSTEM - CENTRAL API BRIDGE & UTILITIES
+ * GOLDEN ERP SYSTEM - CENTRAL API BRIDGE & UTILITIES (D1 DATABASE EDITION)
  * File: js/api.js 
  * 💡 SECURED: D1 Database Compatible API Bridge & SWR In-Memory Caching Engine
  */
 
-// 💡 Corrected Worker URL from Cloudflare Service Name (cashbook-app-api)
+// 💡 Corrected Worker URL matching Cloudflare Service Name (cashbook-app-api)
 const API_WORKER_URL = (typeof window !== 'undefined' && window.CONFIG?.API_URL) 
   ? window.CONFIG.API_URL 
   : "https://cashbook-app-api.goldeneduprivateschool.workers.dev/";
@@ -185,7 +185,6 @@ window.callApi = async function(action, payload = {}, method = 'POST') {
     const { forceRefresh: _, ...serverPayload } = payload;
     const cacheKey = `${action}_${JSON.stringify(serverPayload)}`;
 
-    // Check Cache for Read Actions
     if (isReadAction && !forceRefresh) {
       const cachedRes = window.getApiCache(cacheKey);
       if (cachedRes) {
@@ -290,12 +289,15 @@ window.callApi = async function(action, payload = {}, method = 'POST') {
   }
 };
 
+/**
+ * 💡 Enterprise Background Prefetching Engine (Corrected View Filenames)
+ */
 window.prefetchCoreModules = function() {
   window.viewCache = window.viewCache || {};
   const views = [
-  'dashboard', 'bank-cash', 'income', 'office-kit', 'hr',
-  'cashier', 'student', 'uniform', 'promotion', 'reports',
-  'reports-fund', 'settings'
+    'dashboard', 'bank-cash', 'income', 'office-kit', 'hr',
+    'cashier', 'student', 'uniform', 'promotion', 'reports',
+    'reports-fund', 'settings'
   ];
 
   views.forEach(v => {
