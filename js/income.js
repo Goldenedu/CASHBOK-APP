@@ -315,7 +315,11 @@ async function onStudentIdOrFYChangeIncome() {
   });
 
   if (student) {
-    var actualFyid = student.fyid || targetFyid;
+    // 🛠 PATCH: sanitize student.fyid before displaying/submitting it — the underlying student
+    // record's own fyid column can still contain legacy ".0" artifacts (e.g. "2627-STU-02.0")
+    // until the one-time DB cleanup is run, and this field gets saved straight into the income
+    // entry, so it must be cleaned here too (not just at lookup-matching time).
+    var actualFyid = sanitizeFyidStr(student.fyid) || targetFyid;
     var actualName = student.name || student.fyidName || student.fyid_name || '';
 
     if (fyidShow) fyidShow.value = actualFyid;
