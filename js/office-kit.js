@@ -1,7 +1,7 @@
 /**
  * GOLDEN ERP SYSTEM - OFFICE EXPENSE & INVENTORY MODULE 
  * File: js/office-kit.js
- * 💡 Powered by Cloudflare D1 SQL Database & Current FY Analytics
+ * 💡 Powered by Cloudflare D1 SQL Database & Direct Uniform Ledger Sync
  */
 
 window.OfficeState = {
@@ -73,19 +73,100 @@ function parseCleanNum(val) {
 }
 
 /**
- * 💡 Helper to normalize Uniform Item Properties (Database Snake_case vs CamelCase Safe-Getter)
+ * 💡 Helper to normalize Uniform Item Properties (D1 Table `uniform_ledger` Field Mapping)
  */
 function getUniformItemProps(p) {
   if (!p) return { id: '', name: '', type: '', size: '', unitPrice: 0, sellingPrice: 0, stock: 0 };
+  
+  const pid = p.product_id ?? p.productId ?? p.id ?? '';
+  const pname = p.product_name ?? p.productName ?? '';
+  const ptype = p.type ?? '';
+  const psize = p.size ?? '';
+  const uPrice = parseCleanNum(p.unit_price ?? p.unitPrice ?? 0);
+  const sPrice = parseCleanNum(p.selling_price ?? p.sellingPrice ?? 0);
+  const cQty = parseCleanNum(p.current_qty ?? p.currentQty ?? p.opening_stock ?? p.openingStock ?? 0);
+
   return {
-    id: String(p.productId || p.product_id || p.id || '').trim(),
-    name: String(p.productName || p.product_name || '').trim(),
-    type: String(p.type || p.product_type || '').trim(),
-    size: String(p.size || p.product_size || '').trim(),
-    unitPrice: parseCleanNum(p.unitPrice !== undefined ? p.unitPrice : p.unit_price),
-    sellingPrice: parseCleanNum(p.sellingPrice !== undefined ? p.sellingPrice : p.selling_price),
-    stock: parseCleanNum(p.currentQty !== undefined ? p.currentQty : (p.current_qty !== undefined ? p.current_qty : (p.openingStock || p.opening_stock || 0)))
+    id: String(pid).trim(),
+    name: String(pname).trim(),
+    type: String(ptype).trim(),
+    size: String(psize).trim(),
+    unitPrice: uPrice,
+    sellingPrice: sPrice,
+    stock: cQty
   };
+}
+
+/**
+ * 💡 Single Source of Truth for Uniform Products (OfficeState Cache OR UniformState Memory)
+ */
+function getAvailableUniformProducts() {
+  if (window.OfficeState.uniformProducts && window.OfficeState.uniformProducts.length > 0) {
+    return window.OfficeState.uniformProducts;
+  }
+  if (window.UniformState && window.UniformState.activeData && window.UniformState.activeData.length > 0) {
+    window.OfficeState.uniformProducts = window.UniformState.activeData;
+    return window.UniformState.activeData;
+  }
+  return [];
+}
+
+/**
+ * 💡 Helper to build Options HTML for Product ID Select Dropdown
+ */
+function buildUniformDropdownOptions(list) {
+  const select = document.getElementById('office-product-id');
+  if (!select) return;
+
+  if (!list || list.length === 0) {
+    select.innerHTML = `<option value="">-- No Uniform Products Found --</option>`;
+    return;
+  }
+
+  let html = `<option value="">-- Select Product ID --</option>`;
+  list.forEach(p => {
+    const item = getUniformItemProps(p);
+    if (item.id) {
+      const sizeStr = item.size ? ` (${item.size})` : '';
+      const typeStr = item.type ? ` - ${item.type}` : '';
+      html += `<option value="${escapeHtml(item.id)}">${escapeHtml(item.id)} - ${escapeHtml(item.name)}${escapeHtml(typeStr)}${escapeHtml(sizeStr)}</option>`;
+    }
+  });
+  select.innerHTML = html;
+}
+
+/**
+ * 💡 Fetch Uniform Products List for Dropdown (With Direct D1 `uniform_ledger` Connection)
+ */
+async function fetchUniformProductsListOffice() {
+  const select = document.getElementById('office-product-id');
+  if (!select) return;
+
+  // 1. Memory / Cache ထဲတွင် ရှိပြီးပါက ချက်ချင်း ရေးဆွဲမည်
+  let localProducts = getAvailableUniformProducts();
+  if (localProducts.length > 0) {
+    buildUniformDropdownOptions(localProducts);
+    return;
+  }
+
+  // 2. Cache ထဲမရှိပါက D1 Database (getUniformData) မှ တိုက်ရိုက် လှမ်းယူမည်
+  select.innerHTML = `<option value="">Loading Products from Uniform Ledger...</option>`;
+  try {
+    let res = null;
+    if (typeof callApi === 'function') {
+      res = await callApi('getUniformData', { page: 1, limit: 1000, forceRefresh: true }, 'GET');
+    }
+
+    if (res && res.data && Array.isArray(res.data) && res.data.length > 0) {
+      window.OfficeState.uniformProducts = res.data;
+      buildUniformDropdownOptions(res.data);
+    } else {
+      select.innerHTML = `<option value="">-- No Uniform Products Found --</option>`;
+    }
+  } catch (err) {
+    console.warn("Failed to fetch uniform products for office kit:", err);
+    select.innerHTML = `<option value="">-- Error Loading Products --</option>`;
+  }
 }
 
 /**
@@ -122,7 +203,7 @@ function clearDateFilterOffice() {
 /**
  * 💡 Populate Dropdown Options from Config.js
  */
-function populateDropdownsOffice() {
+async function populateDropdownsOffice() {
   const ctx = getExpenseBookContext();
   const def = (window.DROPDOWNS && window.DROPDOWNS[ctx.dropdownKey]) || {};
 
@@ -146,7 +227,7 @@ function populateDropdownsOffice() {
     }
   }
 
-  onCategoryChangeOffice();
+  await onCategoryChangeOffice();
 }
 
 /**
@@ -180,6 +261,7 @@ async function onCategoryChangeOffice() {
     if (methodSelect) methodSelect.disabled = false;
     if (transSelect) transSelect.disabled = false;
 
+    // Fetch Uniform Ledger Data & Populate Select
     await fetchUniformProductsListOffice();
     onProductChangeOffice();
   } 
@@ -231,8 +313,10 @@ function onProductChangeOffice() {
   const unitEl = document.getElementById('office-unit');
   const unit = parseCleanNum(unitEl ? unitEl.value : 1) || 1;
 
-  if (productId && window.OfficeState.uniformProducts && window.OfficeState.uniformProducts.length > 0) {
-    const rawProd = window.OfficeState.uniformProducts.find(p => {
+  const productsList = getAvailableUniformProducts();
+
+  if (productId && productsList.length > 0) {
+    const rawProd = productsList.find(p => {
       const item = getUniformItemProps(p);
       return item.id.toLowerCase() === String(productId).trim().toLowerCase();
     });
@@ -281,8 +365,10 @@ function calculateDebitOffice() {
       document.getElementById('office-debit').value = unit * unitPrice;
     }
 
-    if (productId && window.OfficeState.uniformProducts && window.OfficeState.uniformProducts.length > 0) {
-      const rawProd = window.OfficeState.uniformProducts.find(p => {
+    const productsList = getAvailableUniformProducts();
+
+    if (productId && productsList.length > 0) {
+      const rawProd = productsList.find(p => {
         const item = getUniformItemProps(p);
         return item.id.toLowerCase() === String(productId).trim().toLowerCase();
       });
@@ -305,38 +391,6 @@ function calculateDebitOffice() {
         }
       }
     }
-  }
-}
-
-/**
- * 💡 Fetch Uniform Products List for Dropdown (Fixed Snake_case Field Normalization)
- */
-async function fetchUniformProductsListOffice() {
-  const select = document.getElementById('office-product-id');
-
-  const buildOptions = (list) => {
-    if (!select) return;
-    select.innerHTML = `<option value="">-- Select Product ID --</option>` +
-      list.map(p => {
-        const item = getUniformItemProps(p);
-        const sizeStr = item.size ? ` (${item.size})` : '';
-        return `<option value="${item.id}">${item.id} - ${item.name}${sizeStr}</option>`;
-      }).join('');
-  };
-
-  if (window.OfficeState.uniformProducts && window.OfficeState.uniformProducts.length > 0) {
-    buildOptions(window.OfficeState.uniformProducts);
-    return;
-  }
-
-  try {
-    const res = await typeof callApi === 'function' ? callApi('getUniformData', { page: 1, limit: 1000 }, 'GET') : null;
-    if (res && res.data) {
-      window.OfficeState.uniformProducts = res.data;
-      buildOptions(res.data);
-    }
-  } catch (err) {
-    console.warn("Failed to fetch uniform products:", err);
   }
 }
 
@@ -515,7 +569,7 @@ function bindModalOfficeListeners() {
   }
 }
 
-function openAddModalOffice() {
+async function openAddModalOffice() {
   const form = document.getElementById('office-form');
   if (form) form.reset();
 
@@ -534,7 +588,7 @@ function openAddModalOffice() {
   const titleEl = document.getElementById('office-form-title');
   if (titleEl) titleEl.innerText = `Add ${getExpenseBookContext().label} Expense Entry`;
 
-  populateDropdownsOffice();
+  await populateDropdownsOffice();
   bindModalOfficeListeners();
 
   const modalEl = document.getElementById('office-modal');
@@ -567,9 +621,11 @@ async function saveOfficeForm(e) {
   const unit = parseCleanNum(document.getElementById('office-unit')?.value);
   const unitPrice = parseCleanNum(document.getElementById('office-unit-price')?.value);
 
+  const productsList = getAvailableUniformProducts();
+
   let calculatedProfit = 0;
-  if ((category === "Advance Uniform" || category === "Advance Unifrom") && productId && window.OfficeState.uniformProducts) {
-    const rawProd = window.OfficeState.uniformProducts.find(p => {
+  if ((category === "Advance Uniform" || category === "Advance Unifrom") && productId && productsList.length > 0) {
+    const rawProd = productsList.find(p => {
       const item = getUniformItemProps(p);
       return item.id.toLowerCase() === String(productId).trim().toLowerCase();
     });
@@ -639,43 +695,41 @@ function editOfficeEntry(uniqueId) {
     return;
   }
 
-  openAddModalOffice();
+  openAddModalOffice().then(() => {
+    const uidEl = document.getElementById('office-uniqueId');
+    if (uidEl) uidEl.value = row.uniqueId;
 
-  const uidEl = document.getElementById('office-uniqueId');
-  if (uidEl) uidEl.value = row.uniqueId;
+    const dateEl = document.getElementById('office-date');
+    if (dateEl) dateEl.value = row.date;
 
-  const dateEl = document.getElementById('office-date');
-  if (dateEl) dateEl.value = row.date;
+    const catEl = document.getElementById('office-category');
+    if (catEl) catEl.value = row.category;
 
-  const catEl = document.getElementById('office-category');
-  if (catEl) catEl.value = row.category;
-  
-  onCategoryChangeOffice();
+    if (document.getElementById('office-product-id')) document.getElementById('office-product-id').value = row.id || "";
+    if (document.getElementById('office-unit')) document.getElementById('office-unit').value = row.unit || 1;
+    if (document.getElementById('office-unit-price')) document.getElementById('office-unit-price').value = row.unitPrice || 0;
+    
+    const methodEl = document.getElementById('office-method');
+    if (methodEl) methodEl.value = row.method || "Cash";
 
-  if (document.getElementById('office-product-id')) document.getElementById('office-product-id').value = row.id || "";
-  if (document.getElementById('office-unit')) document.getElementById('office-unit').value = row.unit || 1;
-  if (document.getElementById('office-unit-price')) document.getElementById('office-unit-price').value = row.unitPrice || 0;
-  
-  const methodEl = document.getElementById('office-method');
-  if (methodEl) methodEl.value = row.method || "Cash";
+    const debitEl = document.getElementById('office-debit');
+    if (debitEl) debitEl.value = row.debit || 0;
 
-  const debitEl = document.getElementById('office-debit');
-  if (debitEl) debitEl.value = row.debit || 0;
+    const creditEl = document.getElementById('office-credit');
+    if (creditEl) creditEl.value = row.credit || 0;
 
-  const creditEl = document.getElementById('office-credit');
-  if (creditEl) creditEl.value = row.credit || 0;
+    const liabEl = document.getElementById('office-liabilities');
+    if (liabEl) liabEl.value = row.liabilities || 0;
 
-  const liabEl = document.getElementById('office-liabilities');
-  if (liabEl) liabEl.value = row.liabilities || 0;
+    const transferEl = document.getElementById('office-transfer');
+    if (transferEl) transferEl.value = row.transfer || "";
 
-  const transferEl = document.getElementById('office-transfer');
-  if (transferEl) transferEl.value = row.transfer || "";
+    const descEl = document.getElementById('office-description');
+    if (descEl) descEl.value = row.description || "";
 
-  const descEl = document.getElementById('office-description');
-  if (descEl) descEl.value = row.description || "";
-
-  const titleEl = document.getElementById('office-form-title');
-  if (titleEl) titleEl.innerText = `Edit ${getExpenseBookContext().label} Expense Entry`;
+    const titleEl = document.getElementById('office-form-title');
+    if (titleEl) titleEl.innerText = `Edit ${getExpenseBookContext().label} Expense Entry`;
+  });
 }
 
 async function deleteOfficeEntry(uniqueId) {
@@ -717,35 +771,4 @@ function exportToCSVOffice() {
   data.forEach(row => {
     let desc = `"${(row.description || '').replace(/"/g, '""')}"`;
     let cat = `"${(row.category || '').replace(/"/g, '""')}"`;
-    csv += `${row.no || ''},${row.date || ''},${cat},${desc},${row.unit || 0},${row.unitPrice || 0},${row.method || ''},${row.debit || 0},${row.credit || 0},${row.balances || 0},${row.liabilities || 0},${row.transfer || ''},${row.vrNo || ''},${row.my || ''},${row.fy || ''},${row.uniqueId || ''}\n`;
-  });
-
-  const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement("a");
-  const url = URL.createObjectURL(blob);
-  link.setAttribute("href", url);
-  link.setAttribute("download", `office_expense_${new Date().toISOString().slice(0,10)}.csv`);
-  link.style.visibility = 'hidden';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-}
-
-// 💡 EXPOSE GLOBALLY
-window.loadOfficeData = loadOfficeData;
-window.openAddModalOffice = openAddModalOffice;
-window.closeOfficeModal = closeOfficeModal;
-window.saveOfficeForm = saveOfficeForm;
-window.editOfficeEntry = editOfficeEntry;
-window.deleteOfficeEntry = deleteOfficeEntry;
-window.exportToCSVOffice = exportToCSVOffice;
-window.onCategoryChangeOffice = onCategoryChangeOffice;
-window.onTransferTargetChangeOffice = onTransferTargetChangeOffice;
-window.onProductChangeOffice = onProductChangeOffice;
-window.calculateDebitOffice = calculateDebitOffice;
-window.onSearchInputOffice = onSearchInputOffice;
-window.clearDateFilterOffice = clearDateFilterOffice;
-window.changePageOffice = changePageOffice;
-window.switchExpenseBook = switchExpenseBook;
-window.getExpenseBookContext = getExpenseBookContext;
-window.updateOfficeAddButtonLabel = updateOfficeAddButtonLabel;
+    csv += `${row.no || ''},${row.date ||
