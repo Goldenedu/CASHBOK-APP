@@ -73,10 +73,10 @@ function parseCleanNum(val) {
 }
 
 /**
- * 💡 Helper to normalize Uniform Item Properties (Stock = CURRENT QTY Calculation)
+ * 💡 Helper to normalize Uniform Item Properties (Stock = Exact CURRENT QTY)
  */
 function getUniformItemProps(p) {
-  if (!p) return { id: '', name: '', type: '', size: '', unitPrice: 0, sellingPrice: 0, stock: 0 };
+  if (!p) return { id: '', name: '', type: '', size: '', unitPrice: 0, sellingPrice: 0, stock: 0, uniqueKey: '' };
   
   var pid = p.product_id ?? p.productId ?? p.id ?? '';
   var pname = p.product_name ?? p.productName ?? '';
@@ -91,6 +91,9 @@ function getUniformItemProps(p) {
     ? parseCleanNum(p.current_qty) 
     : ((p.currentQty !== undefined && p.currentQty !== null) ? parseCleanNum(p.currentQty) : (openStock - sellUnit));
 
+  // Compound key to distinguish same PID with different Size/Type
+  var uniqueKey = p.uniqueid || p.uniqueId || (String(pid).trim() + '|' + String(psize).trim() + '|' + String(ptype).trim());
+
   return {
     id: String(pid).trim(),
     name: String(pname).trim(),
@@ -98,7 +101,8 @@ function getUniformItemProps(p) {
     size: String(psize).trim(),
     unitPrice: uPrice,
     sellingPrice: sPrice,
-    stock: cQty
+    stock: cQty,
+    uniqueKey: uniqueKey
   };
 }
 
@@ -134,14 +138,14 @@ function buildUniformDropdownOptions(list) {
     if (item.id) {
       var sizeStr = item.size ? ' (' + item.size + ')' : '';
       var typeStr = item.type ? ' - ' + item.type : '';
-      html += '<option value="' + escapeHtml(item.id) + '">' + escapeHtml(item.id) + ' - ' + escapeHtml(item.name) + escapeHtml(typeStr) + escapeHtml(sizeStr) + '</option>';
+      html += '<option value="' + escapeHtml(item.uniqueKey) + '" data-pid="' + escapeHtml(item.id) + '">' + escapeHtml(item.id) + ' - ' + escapeHtml(item.name) + escapeHtml(typeStr) + escapeHtml(sizeStr) + '</option>';
     }
   });
   select.innerHTML = html;
 }
 
 /**
- * 💡 Fetch Uniform Products List for Dropdown (With Direct D1 `uniform_ledger` Connection)
+ * 💡 Fetch Uniform Products List for Dropdown
  */
 async function fetchUniformProductsListOffice() {
   var select = document.getElementById('office-product-id');
@@ -311,17 +315,18 @@ function onTransferTargetChangeOffice() {
  */
 function onProductChangeOffice() {
   var prodEl = document.getElementById('office-product-id');
-  var productId = prodEl ? prodEl.value : '';
+  var selectedKey = prodEl ? prodEl.value : '';
   var stockBadge = document.getElementById('office-stock-badge');
   var unitEl = document.getElementById('office-unit');
   var unit = parseCleanNum(unitEl ? unitEl.value : 1) || 1;
 
   var productsList = getAvailableUniformProducts();
 
-  if (productId && productsList.length > 0) {
+  if (selectedKey && productsList.length > 0) {
     var rawProd = productsList.find(function(p) {
       var item = getUniformItemProps(p);
-      return item.id.toLowerCase() === String(productId).trim().toLowerCase();
+      return item.uniqueKey.toLowerCase() === String(selectedKey).trim().toLowerCase() ||
+             item.id.toLowerCase() === String(selectedKey).trim().toLowerCase();
     });
 
     if (rawProd) {
@@ -359,7 +364,7 @@ function calculateDebitOffice() {
 
   if (category === "Advance Uniform" || category === "Advance Unifrom") {
     var prodEl = document.getElementById('office-product-id');
-    var productId = prodEl ? prodEl.value : '';
+    var selectedKey = prodEl ? prodEl.value : '';
     var unitEl = document.getElementById('office-unit');
     var unit = parseCleanNum(unitEl ? unitEl.value : 0);
     var unitPrice = parseCleanNum(document.getElementById('office-unit-price')?.value);
@@ -371,10 +376,11 @@ function calculateDebitOffice() {
 
     var productsList = getAvailableUniformProducts();
 
-    if (productId && productsList.length > 0) {
+    if (selectedKey && productsList.length > 0) {
       var rawProd = productsList.find(function(p) {
         var item = getUniformItemProps(p);
-        return item.id.toLowerCase() === String(productId).trim().toLowerCase();
+        return item.uniqueKey.toLowerCase() === String(selectedKey).trim().toLowerCase() ||
+               item.id.toLowerCase() === String(selectedKey).trim().toLowerCase();
       });
 
       if (rawProd) {
@@ -453,7 +459,7 @@ function updateStatsOffice() {
 }
 
 /**
- * 💡 Render Office Table Grid Rows (Integer NO Fix Applied)
+ * 💡 Render Office Table Grid Rows
  */
 function renderOfficeTable() {
   var tableBody = document.getElementById('office-table-body');
@@ -496,7 +502,6 @@ function renderOfficeTable() {
     var liabStr = Number(row.liabilities || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
     var priceStr = Number(row.unitPrice || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
-    // 💡 Integer NO Fix (Displays 1, 2, 3 instead of 1.0)
     var displayNo = Math.floor(parseCleanNum(row.no || row.id)) || 1;
 
     return '<tr class="hover:bg-slate-800/20 text-slate-300">' +
@@ -628,23 +633,31 @@ async function saveOfficeForm(e) {
   var uniqueId = document.getElementById('office-uniqueId')?.value || '';
   var isAdd = (!uniqueId);
   var category = document.getElementById('office-category')?.value || '';
-  var productId = document.getElementById('office-product-id') ? document.getElementById('office-product-id').value : '';
+  var prodEl = document.getElementById('office-product-id');
+  var selectedKey = prodEl ? prodEl.value : '';
+  
+  // Extract clean product ID
+  var selectedOpt = prodEl && prodEl.selectedIndex >= 0 ? prodEl.options[prodEl.selectedIndex] : null;
+  var cleanPid = selectedOpt ? (selectedOpt.getAttribute('data-pid') || selectedKey) : selectedKey;
+
   var unit = parseCleanNum(document.getElementById('office-unit')?.value);
   var unitPrice = parseCleanNum(document.getElementById('office-unit-price')?.value);
 
   var productsList = getAvailableUniformProducts();
 
   var calculatedProfit = 0;
-  if ((category === "Advance Uniform" || category === "Advance Unifrom") && productId && productsList.length > 0) {
+  if ((category === "Advance Uniform" || category === "Advance Unifrom") && selectedKey && productsList.length > 0) {
     var rawProd = productsList.find(function(p) {
       var item = getUniformItemProps(p);
-      return item.id.toLowerCase() === String(productId).trim().toLowerCase();
+      return item.uniqueKey.toLowerCase() === String(selectedKey).trim().toLowerCase() ||
+             item.id.toLowerCase() === String(selectedKey).trim().toLowerCase();
     });
     if (rawProd) {
       var prod = getUniformItemProps(rawProd);
       var sellingPrice = prod.sellingPrice;
       var profitPerUnit = sellingPrice - unitPrice;
       calculatedProfit = unit * profitPerUnit;
+      cleanPid = prod.id;
     }
   }
 
@@ -652,7 +665,7 @@ async function saveOfficeForm(e) {
     uniqueId: uniqueId,
     date: document.getElementById('office-date')?.value || '',
     category: category,
-    id: productId,
+    id: cleanPid,
     unit: unit,
     unitPrice: unitPrice,
     profit: calculatedProfit,
@@ -700,7 +713,7 @@ async function saveOfficeForm(e) {
 }
 
 /**
- * 💡 EDIT OFFICE ENTRY (Advance Uniform Edit Restoration Fix)
+ * 💡 EDIT OFFICE ENTRY (Restoration Fix)
  */
 async function editOfficeEntry(uniqueId) {
   var row = window.OfficeState.activeData.find(function(item) { return item.uniqueId === uniqueId; });
@@ -709,7 +722,7 @@ async function editOfficeEntry(uniqueId) {
     return;
   }
 
-  // 1. Modal ပွင့်ပြီး Dropdown များ စနစ်တကျ ပြည့်စုံစေရန် စောင့်ဆိုင်းပါ
+  // 1. Modal ပွင့်ပြီး Dropdown Options များ ၁၀၀% ပြည့်စုံအောင် စောင့်ပါ
   await openAddModalOffice();
 
   var uidEl = document.getElementById('office-uniqueId');
@@ -720,28 +733,31 @@ async function editOfficeEntry(uniqueId) {
 
   // 2. Category ကို သတ်မှတ်ပါ
   var catEl = document.getElementById('office-category');
-  if (catEl) catEl.value = row.category;
+  if (catEl) {
+    catEl.value = row.category;
+    await onCategoryChangeOffice();
+  }
 
-  // 3. Category Change အား Await ဖြင့် စောင့်ဆိုင်း၍ Uniform Container များ ပွင့်ကာ Select Options များ အပြည့်အဝ တက်လာစေပါ
-  await onCategoryChangeOffice();
-
-  // 4. Product ID, Unit, Unit Price များကို မူလ ထည့်သွင်းထားသော တန်ဖိုးများအတိုင်း ပြန်လည် ထည့်သွင်းပါ
+  // 3. Select Dropdown မှ မူလ Product ID ကို ရှာဖွေပြီး အတိအကျ ပြန်လည် ရွေးချယ်ပေးပါ
   var prodSelect = document.getElementById('office-product-id');
-  if (prodSelect) {
-    prodSelect.value = row.id || "";
+  if (prodSelect && row.id) {
+    var matchingOpt = Array.from(prodSelect.options).find(function(opt) {
+      return opt.value === row.id || opt.getAttribute('data-pid') === row.id || opt.value.startsWith(row.id + '|');
+    });
+    if (matchingOpt) {
+      prodSelect.value = matchingOpt.value;
+    } else {
+      prodSelect.value = row.id;
+    }
   }
 
   var unitEl = document.getElementById('office-unit');
-  if (unitEl) {
-    unitEl.value = row.unit || 1;
-  }
+  if (unitEl) unitEl.value = row.unit || 1;
 
   var unitPriceEl = document.getElementById('office-unit-price');
-  if (unitPriceEl) {
-    unitPriceEl.value = row.unitPrice || 0;
-  }
+  if (unitPriceEl) unitPriceEl.value = row.unitPrice || 0;
 
-  // 💡 Stock Badge နှင့် Calculated Profit Amount Auto-recalculate လုပ်ခိုင်းပါ
+  // 💡 Stock Badge နှင့် Calculated Profit Preview ကို ပြန်လည် တွက်ချက်ပြသစေပါ
   onProductChangeOffice();
 
   var methodEl = document.getElementById('office-method');
