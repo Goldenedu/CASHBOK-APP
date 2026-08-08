@@ -15,32 +15,26 @@ window.formatCategoryBadgeHtml = function(categoryStr) {
 
   const lower = cat.toLowerCase();
 
-  // 1. Red / Rose Accent
   if (lower.includes('loan') || lower.includes('adv') || lower.includes('expense') || lower.includes('liability')) {
     return `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm shadow-rose-950/20"><i class="fa-solid fa-triangle-exclamation text-[9px] text-rose-400"></i> ${cat}</span>`;
   }
 
-  // 2. Emerald / Green Accent
   if (lower.includes('income') || lower.includes('sale') || lower.includes('service') || lower.includes('fee') || lower.includes('tuition')) {
     return `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm shadow-emerald-950/20"><i class="fa-solid fa-circle-arrow-down text-[9px] text-emerald-400"></i> ${cat}</span>`;
   }
 
-  // 3. Sky / Blue Accent
   if (lower.includes('transfer') || lower.includes('move')) {
     return `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-sky-500/20 text-sky-300 border border-sky-500/40 shadow-sm shadow-sky-950/20"><i class="fa-solid fa-right-left text-[9px] text-sky-400"></i> ${cat}</span>`;
   }
 
-  // 4. Amber / Gold Accent
   if (lower.includes('open') || lower.includes('balance') || lower.includes('capital')) {
     return `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm shadow-amber-950/20"><i class="fa-solid fa-vault text-[9px] text-amber-400"></i> ${cat}</span>`;
   }
 
-  // 5. Purple / Indigo Accent
   if (lower.includes('payroll') || lower.includes('salary') || lower.includes('bonus') || lower.includes('fund') || lower.includes('staff')) {
     return `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-sm shadow-purple-950/20"><i class="fa-solid fa-user-tag text-[9px] text-purple-400"></i> ${cat}</span>`;
   }
 
-  // 6. Teal / Cyan Accent
   if (lower.includes('boarder') || lower.includes('student') || lower.includes('uniform') || lower.includes('stock')) {
     return `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-teal-500/20 text-teal-300 border border-teal-500/40 shadow-sm shadow-teal-950/20"><i class="fa-solid fa-tag text-[9px] text-teal-400"></i> ${cat}</span>`;
   }
@@ -361,6 +355,8 @@ async function loadDashboardData(isSilent = false, forceRefresh = false) {
     const fin = d.financials || d.kpi || {};
     const bal = d.balances || {};
     const demo = d.demographics || d.info || {};
+    const liab = d.liabilities || {};
+    const rec = d.receivables || {};
 
     // 1. KPI Top Cards
     setElementText('db-total-income', formatMoney(fin.totalIncome) + ' MMK');
@@ -376,11 +372,30 @@ async function loadDashboardData(isSilent = false, forceRefresh = false) {
     setElementText('db-bal-payroll', formatMoney(bal.payroll) + ' MMK');
     setElementText('db-bal-total', formatMoney(bal.total) + ' MMK');
 
-    // 3. Active Demographic Info
-    setElementText('db-stu-total', formatNumber(demo.students));
-    setElementText('db-ft-total', formatNumber(demo.fullTimeStaff));
-    setElementText('db-pt-total', formatNumber(demo.partTimeStaff));
-    setElementText('db-demo-tot-all', formatNumber(demo.totalActive));
+    // 3. Liabilities
+    setElementText('db-lia-bank', formatMoney(liab.bankLoan) + ' MMK');
+    setElementText('db-lia-cash', formatMoney(liab.cashLoan) + ' MMK');
+    setElementText('db-lia-office', formatMoney(liab.officeLiabilities) + ' MMK');
+    setElementText('db-lia-bonus', formatMoney(liab.hrBonus) + ' MMK');
+    setElementText('db-lia-fund', formatMoney(liab.hrFund) + ' MMK');
+    setElementText('db-lia-total', formatMoney(liab.total) + ' MMK');
+
+    // 4. Receivables
+    setElementText('db-rec-snack', formatMoney(rec.advanceSnack) + ' MMK');
+    setElementText('db-rec-uniform', formatMoney(rec.advanceUniform) + ' MMK');
+    setElementText('db-rec-other', formatMoney(rec.otherAdvance) + ' MMK');
+    setElementText('db-rec-total', formatMoney(rec.total) + ' MMK');
+
+    // 5. Active Demographic Info
+    const stuTot = demo.students ?? demo.info?.students?.total ?? 0;
+    const ftTot = demo.fullTimeStaff ?? demo.info?.fullTime?.total ?? 0;
+    const ptTot = demo.partTimeStaff ?? demo.info?.partTime?.total ?? 0;
+    const grandAll = demo.totalActive ?? (stuTot + ftTot + ptTot);
+
+    setElementText('db-stu-total', formatNumber(stuTot));
+    setElementText('db-ft-total', formatNumber(ftTot));
+    setElementText('db-pt-total', formatNumber(ptTot));
+    setElementText('db-demo-tot-all', formatNumber(grandAll));
 
   } catch (err) {
     console.warn("Dashboard loading fallback applied:", err.message);
@@ -461,7 +476,6 @@ async function saveGradeForm(event) {
       if (typeof showToast === 'function') showToast("SUCCESS", "Grade Matrix နှုန်းထားများကို Cloudflare D1 Database ထဲသို့ အောင်မြင်စွာ သိမ်းဆည်းပြီးပါပြီ။");
       closeGradeModal();
       
-      // D1 Database မှ တန်ဖိုးအသစ်များကို ဖတ်ယူ၍ Dropdown အား ပြန်လည် Render မည်
       if (typeof fetchPayrollSettings === 'function') {
         await fetchPayrollSettings();
         if (typeof renderGradeDropdownOptions === 'function') renderGradeDropdownOptions();
