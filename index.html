@@ -2,12 +2,10 @@
 <html lang="my" class="dark">
 <head>
   <meta charset="UTF-8">
-  <!-- Favicon Icon -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230c1322'/><path d='M50 20 L90 38 L50 56 L10 38 Z' fill='%23818cf8'/><path d='M25 46.5 V65 C25 75 75 75 75 65 V46.5' fill='none' stroke='%23818cf8' stroke-width='6' stroke-linecap='round'/><circle cx='82' cy='55' r='4' fill='%23fbbf24'/><path d='M82 55 V75' stroke='%23fbbf24' stroke-width='3' stroke-linecap='round'/></svg>">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GOLDEN CASH BOOK - ERP SYSTEM</title>
 
-  <!-- 💡 Instant Anti-Flicker Sync Script -->
   <script>
     (function() {
       var token = localStorage.getItem('golden_auth_token');
@@ -20,41 +18,32 @@
   </script>
 
   <style>
-    /* Dynamic CSS Specificity */
     html.is-authed #login-overlay { display: none; }
     html.is-authed #erp-workspace { display: flex; }
     html.not-authed #login-overlay { display: flex; }
     html.not-authed #erp-workspace { display: none; }
   </style>
   
-  <!-- Production Tailwind CSS (Local Offline) -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=20260730">
-  <!-- Font Awesome Icons (Local Offline) -->
-  <link rel="stylesheet" href="css/fontawesome.min.css?v=20260730">
-  <!-- Custom ERP Theme & Print Engine -->
-  <link rel="stylesheet" href="css/style.css?v=20260730">
+  <link rel="stylesheet" href="css/tailwind.min.css?v=20260808b">
+  <link rel="stylesheet" href="css/fontawesome.min.css?v=20260808b">
+  <link rel="stylesheet" href="css/style.css?v=20260808b">
 </head>
 <body class="bg-[#090d16] font-sans flex h-screen overflow-hidden text-slate-300">
 
-  <!-- 💡 GOLDEN LUXURY LOGIN OVERLAY -->
   <div id="login-overlay" class="fixed inset-0 bg-[#090d16] z-[100] flex items-center justify-center p-4">
     <div class="relative w-full max-w-md bg-[#0e131f]/90 border border-amber-500/20 backdrop-blur-xl rounded-3xl p-8 shadow-[0_20px_50px_rgba(0,0,0,0.8)] text-center overflow-hidden space-y-6 text-slate-300">
       
-      <!-- ရွှေရောင် အလင်းရောင် Glow Effect Background -->
       <div class="absolute -top-12 left-1/2 -translate-x-1/2 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
-      <!-- 🎓 1. ဘွဲ့ရ ဦးထုပ် (Gold Gradient Cap Icon) -->
       <div class="text-center">
         <div class="inline-flex items-center justify-center p-4 rounded-2xl bg-gradient-to-b from-amber-500/15 to-amber-600/5 border border-amber-500/30 shadow-inner group transition-all duration-300 hover:scale-105 mb-3">
           <i class="fa-solid fa-graduation-cap text-4xl text-amber-400 filter drop-shadow-[0_2px_8px_rgba(245,158,11,0.5)]"></i>
         </div>
         
-        <!-- 🏫 2. Title: Golden Education Private High School -->
         <h2 class="text-xl font-black tracking-tight mb-1 text-gold-gradient filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
           Golden Education Private High School
         </h2>
         
-        <!-- 📊 3. Subtitle: Financial Management System -->
         <p class="text-[11px] font-extrabold uppercase tracking-[0.25em] text-amber-200/70 pb-3 border-b border-amber-500/10">
           Financial Management System
         </p>
@@ -63,7 +52,6 @@
       <form id="login-form" onsubmit="handleLoginSubmit(event)" class="space-y-4 text-xs text-left">
         <div>
           <label class="block font-bold text-[11px] text-slate-300 uppercase tracking-widest mb-1.5">Select Username / Role</label>
-          <!-- 💡 8 Roles Dropdown List -->
           <select id="login-username" required class="w-full p-3 bg-[#070a12]/80 border border-slate-700/60 rounded-xl text-xs text-slate-100 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 transition-all duration-300 font-bold">
             <option value="">-- Select Username --</option>
             <option value="Owner">Owner</option>
@@ -84,14 +72,12 @@
 
         <div id="login-error" class="hidden text-rose-400 font-semibold text-[11px] bg-rose-500/10 border border-rose-500/20 p-2.5 rounded-xl text-center"></div>
 
-        <!-- 🚀 Enter System Button -->
         <button type="submit" class="w-full py-3.5 mt-2 bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold rounded-xl transition-all duration-300 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 flex items-center justify-center gap-2 text-xs tracking-wider active:scale-[0.99] cursor-pointer">
           <span>Enter System</span>
           <i class="fa-solid fa-arrow-right-to-bracket text-sm"></i>
         </button>
       </form>
 
-      <!-- ⬇️ Enter System အောက်တွင် ပြသပေးမည့် Pro Footer Panel -->
       <div class="pt-4 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500">
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -103,7 +89,6 @@
     </div>
   </div>
 
-  <!-- MAIN ERP WORKSPACE -->
   <div id="erp-workspace" class="hidden h-full w-full">
     <aside class="w-64 bg-[#0c1322] border-r border-slate-800 flex flex-col h-full shadow-2xl shrink-0">
       <div class="h-[64px] px-4 border-b border-slate-800 flex items-center justify-between text-slate-200 bg-[#0e172a] shrink-0">
@@ -116,14 +101,11 @@
         </button>
       </div>
 
-      <!-- 💡 SIDEBAR NAV -->
       <nav class="flex-1 px-2.5 py-2.5 space-y-0.5 overflow-y-auto" id="sidebar-nav">
-        <!-- Dashboard -->
         <button onclick="switchTab('dashboard')" id="btn-dashboard" class="nav-btn w-full text-left px-3.5 py-2 rounded-lg text-slate-300 hover:text-white flex items-center gap-2.5 text-xs font-semibold">
           <i class="fa-solid fa-gauge-high w-4 text-center text-indigo-400"></i> Home Dashboard
         </button>
 
-        <!-- Main Books -->
         <p class="text-[9px] font-bold text-slate-500 px-3 uppercase tracking-wider mt-2.5 mb-1">Main Books</p>
         <button onclick="switchTab('bank')" id="btn-bank" class="nav-btn w-full text-left px-3.5 py-2 rounded-lg text-slate-300 hover:text-white flex items-center gap-2.5 text-xs font-semibold">
           <i class="fa-solid fa-building-columns text-amber-400 w-4 text-center"></i> Main Bank Book
@@ -135,7 +117,6 @@
           <i class="fa-solid fa-wallet text-sky-400 w-4 text-center"></i> Main Income Book
         </button>
 
-        <!-- Expense Book -->
         <p class="text-[9px] font-bold text-slate-500 px-3 uppercase tracking-wider mt-2.5 mb-1">Expense Book</p>
         <button onclick="switchTab('office')" id="btn-office" class="nav-btn w-full text-left px-3.5 py-2 rounded-lg text-slate-300 hover:text-white flex items-center gap-2.5 text-xs font-semibold">
           <i class="fa-solid fa-briefcase text-cyan-400 w-4 text-center"></i> Office Exp Book
@@ -150,7 +131,6 @@
           </button>
         </div>
 
-        <!-- List & Inventory -->
         <p class="text-[9px] font-bold text-slate-500 px-3 uppercase tracking-wider mt-2.5 mb-1">List & Inventory</p>
         <button onclick="switchTab('student')" id="btn-student" class="nav-btn w-full text-left px-3.5 py-2 rounded-lg text-slate-300 hover:text-white flex items-center gap-2.5 text-xs font-semibold">
           <i class="fa-solid fa-user-graduate text-indigo-400 w-4 text-center"></i> Student List
@@ -162,7 +142,6 @@
           <i class="fa-solid fa-coins text-yellow-400 w-4 text-center"></i> Promotion List
         </button>
 
-        <!-- Reporting -->
         <p class="text-[9px] font-bold text-slate-500 px-3 uppercase tracking-wider mt-2.5 mb-1">Reporting</p>
         <button onclick="switchTab('report-financial')" id="btn-report-financial" class="nav-btn w-full text-left px-3.5 py-2 rounded-lg text-slate-300 hover:text-white flex items-center gap-2.5 text-xs font-semibold">
           <i class="fa-solid fa-chart-pie text-emerald-400 w-4 text-center"></i> Financial Reports
@@ -171,13 +150,11 @@
           <i class="fa-solid fa-hand-holding-dollar text-teal-400 w-4 text-center"></i> Staff Fund Report
         </button>
 
-        <!-- Cashier Sub-Ledger -->
         <p class="text-[9px] font-bold text-slate-500 px-3 uppercase tracking-wider mt-2.5 mb-1">Cashier Sub-Ledger</p>
         <button onclick="switchTab('cashier')" id="btn-cashier" class="nav-btn w-full text-left px-3.5 py-2 rounded-lg text-slate-300 hover:text-white flex items-center gap-2.5 text-xs font-semibold">
           <i class="fa-solid fa-cash-register text-emerald-400 w-4 text-center"></i> Cashier Cash Book
         </button>
 
-        <!-- System Controls -->
         <p class="text-[9px] font-bold text-slate-500 px-3 uppercase tracking-wider mt-2.5 mb-1">System Controls</p>
         <button onclick="switchTab('settings')" id="btn-settings" class="nav-btn w-full text-left px-3.5 py-2 rounded-lg text-slate-300 hover:text-white flex items-center gap-2.5 text-xs font-semibold">
           <i class="fa-solid fa-gears text-indigo-400 w-4 text-center"></i> System Settings
@@ -188,7 +165,6 @@
     <div class="flex-1 flex flex-col overflow-hidden">
       <header class="bg-[#0c1322] border-b border-slate-800 h-[64px] px-6 flex justify-between items-center z-10 shrink-0">
         <h1 id="page-title" class="text-base md:text-lg font-extrabold text-slate-100 tracking-wide">Home Dashboard</h1>
-        <!-- 💡 LIVE METADATA BADGE -->
         <div id="live-metadata" class="text-xs font-bold text-emerald-400 bg-[#111c44] border border-emerald-500/20 px-3.5 py-1.5 rounded-lg">
           FY 2026-2027 | Sat | --:-- | User: Admin
         </div>
@@ -207,7 +183,6 @@
 
   <div id="toast-container" class="fixed bottom-5 right-5 z-[200] flex flex-col gap-2 pointer-events-none"></div>
 
-  <!-- 💡 CANONICAL SHARED SALARY GRADE MATRIX MODAL (Cloudflare D1 Database) -->
   <div id="grade-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
     <div class="bg-[#0c1322] border border-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
       <div class="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-[#0e172a] shrink-0">
@@ -292,7 +267,6 @@
     </div>
   </div>
 
-  <!-- 💡 GLOBAL DUAL-COPY PRINT RECEIPT LAYOUT -->
   <div id="invoice-print-area" class="bg-white text-black font-sans text-xs">
     <div class="invoice-section">
       <div class="space-y-3">
@@ -448,23 +422,23 @@
     </div>
   </div>
 
-  <script src="js/config.js?v=20260730" defer></script>
-  <script src="js/api.js?v=20260730" defer></script>
-  <script src="js/auth.js?v=20260730" defer></script>
-  <script src="js/bank-cash.js?v=20260730" defer></script>
-  <script src="js/office-kit.js?v=20260730" defer></script>
-  <script src="js/cashier.js?v=20260731a" defer></script>
-  <script src="js/hr.js?v=20260730" defer></script>
-  <script src="js/income.js?v=20260730" defer></script>
-  <script src="js/staff.js?v=20260730" defer></script>
-  <script src="js/student.js?v=20260730" defer></script>
-  <script src="js/uniform.js?v=20260730" defer></script>
-  <script src="js/promotion.js?v=20260730" defer></script>
-  <script src="js/reports.js?v=20260730" defer></script>
-  <script src="js/settings.js?v=20260730" defer></script>
-  <script src="js/app.js?v=20260730" defer></script>
-  
-  <!-- 💡 EOY Drive Backup & Reset controller — split out of settings.js, self-wires into loadSettingsData() above -->
-  <script src="js/settings-eoy.js?v=20260730" defer></script>
+  <!-- 💡 Version query strings updated to v=20260808b for instant cache bypass -->
+  <script src="js/config.js?v=20260808b" defer></script>
+  <script src="js/api.js?v=20260808b" defer></script>
+  <script src="js/auth.js?v=20260808b" defer></script>
+  <script src="js/bank-cash.js?v=20260808b" defer></script>
+  <script src="js/office-kit.js?v=20260808b" defer></script>
+  <script src="js/cashier.js?v=20260808b" defer></script>
+  <script src="js/hr.js?v=20260808b" defer></script>
+  <script src="js/income.js?v=20260808b" defer></script>
+  <script src="js/staff.js?v=20260808b" defer></script>
+  <script src="js/student.js?v=20260808b" defer></script>
+  <script src="js/uniform.js?v=20260808b" defer></script>
+  <script src="js/promotion.js?v=20260808b" defer></script>
+  <script src="js/reports.js?v=20260808b" defer></script>
+  <script src="js/settings.js?v=20260808b" defer></script>
+  <script src="js/app.js?v=20260808b" defer></script>
+  <!-- 💡 EOY Drive Backup & Reset controller -->
+  <script src="js/settings-eoy.js?v=20260808b" defer></script>
 </body>
 </html>
