@@ -85,7 +85,6 @@ function getUniformItemProps(p) {
   var uPrice = parseCleanNum(p.unit_price ?? p.unitPrice ?? 0);
   var sPrice = parseCleanNum(p.selling_price ?? p.sellingPrice ?? 0);
 
-  // 💡 Stock displays CURRENT QTY (Opening Stock - Selling Unit)
   var openStock = parseCleanNum(p.opening_stock ?? p.openingStock ?? 0);
   var sellUnit = parseCleanNum(p.selling_unit ?? p.sellingUnit ?? 0);
   var cQty = (p.current_qty !== undefined && p.current_qty !== null) 
@@ -454,7 +453,7 @@ function updateStatsOffice() {
 }
 
 /**
- * 💡 Render Office Table Grid Rows
+ * 💡 Render Office Table Grid Rows (Integer NO Fix Applied)
  */
 function renderOfficeTable() {
   var tableBody = document.getElementById('office-table-body');
@@ -497,8 +496,11 @@ function renderOfficeTable() {
     var liabStr = Number(row.liabilities || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
     var priceStr = Number(row.unitPrice || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
+    // 💡 Integer NO Fix (Displays 1, 2, 3 instead of 1.0)
+    var displayNo = Math.floor(parseCleanNum(row.no || row.id)) || 1;
+
     return '<tr class="hover:bg-slate-800/20 text-slate-300">' +
-        '<td class="text-center font-mono font-semibold text-slate-500">' + escapeHtml(row.no || '-') + '</td>' +
+        '<td class="text-center font-mono font-semibold text-slate-500">' + displayNo + '</td>' +
         '<td class="font-mono text-xs">' + escapeHtml(displayDate) + '</td>' +
         '<td>' + catBadge + '</td>' +
         '<td class="min-w-[280px] max-w-md truncate" title="' + escapeHtml(row.description) + '">' + escapeHtml(row.description) + '</td>' +
@@ -698,7 +700,7 @@ async function saveOfficeForm(e) {
 }
 
 /**
- * 💡 EDIT OFFICE ENTRY (Advance Uniform Edit Fix)
+ * 💡 EDIT OFFICE ENTRY (Advance Uniform Edit Restoration Fix)
  */
 async function editOfficeEntry(uniqueId) {
   var row = window.OfficeState.activeData.find(function(item) { return item.uniqueId === uniqueId; });
@@ -707,7 +709,7 @@ async function editOfficeEntry(uniqueId) {
     return;
   }
 
-  // 1. Modal ပွင့်ပြီး Dropdown များကို အလျင်စလို ဖြည့်ဆည်းခွင့် ပေးပါ
+  // 1. Modal ပွင့်ပြီး Dropdown များ စနစ်တကျ ပြည့်စုံစေရန် စောင့်ဆိုင်းပါ
   await openAddModalOffice();
 
   var uidEl = document.getElementById('office-uniqueId');
@@ -716,25 +718,30 @@ async function editOfficeEntry(uniqueId) {
   var dateEl = document.getElementById('office-date');
   if (dateEl) dateEl.value = row.date;
 
-  // 2. Category ကို သတ်မှတ်ပြီး Category Change Event ကို ချက်ချင်း အလုပ်လုပ်စေပါ
+  // 2. Category ကို သတ်မှတ်ပါ
   var catEl = document.getElementById('office-category');
-  if (catEl) {
-    catEl.value = row.category;
-    await onCategoryChangeOffice(); // 💡 Advance Uniform UI Containers unhide ဖြစ်စေရန် ခေါ်ယူပေးခြင်း
+  if (catEl) catEl.value = row.category;
+
+  // 3. Category Change အား Await ဖြင့် စောင့်ဆိုင်း၍ Uniform Container များ ပွင့်ကာ Select Options များ အပြည့်အဝ တက်လာစေပါ
+  await onCategoryChangeOffice();
+
+  // 4. Product ID, Unit, Unit Price များကို မူလ ထည့်သွင်းထားသော တန်ဖိုးများအတိုင်း ပြန်လည် ထည့်သွင်းပါ
+  var prodSelect = document.getElementById('office-product-id');
+  if (prodSelect) {
+    prodSelect.value = row.id || "";
   }
 
-  // 3. Product ID, Unit, Unit Price များကို ပြန်လည် ထည့်သွင်းပါ
-  if (document.getElementById('office-product-id')) {
-    document.getElementById('office-product-id').value = row.id || "";
-  }
-  if (document.getElementById('office-unit')) {
-    document.getElementById('office-unit').value = row.unit || 1;
-  }
-  if (document.getElementById('office-unit-price')) {
-    document.getElementById('office-unit-price').value = row.unitPrice || 0;
+  var unitEl = document.getElementById('office-unit');
+  if (unitEl) {
+    unitEl.value = row.unit || 1;
   }
 
-  // 💡 Stock Badge နှင့် Calculated Profit Amount ပြန်လည် တွက်ချက်ပြသစေရန် ခေါ်ပေးပါ
+  var unitPriceEl = document.getElementById('office-unit-price');
+  if (unitPriceEl) {
+    unitPriceEl.value = row.unitPrice || 0;
+  }
+
+  // 💡 Stock Badge နှင့် Calculated Profit Amount Auto-recalculate လုပ်ခိုင်းပါ
   onProductChangeOffice();
 
   var methodEl = document.getElementById('office-method');
