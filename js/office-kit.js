@@ -2,6 +2,12 @@
  * GOLDEN ERP SYSTEM - OFFICE EXPENSE & INVENTORY MODULE 
  * File: js/office-kit.js
  * 💡 Powered by Cloudflare D1 SQL Database & Direct Uniform Ledger Sync
+ *
+ * 🔧 FIX LOG (this revision):
+ *  - editOfficeEntry(): now matches the "Select Uniform Product ID" dropdown using the
+ *    dedicated row.productId field returned by the backend (see handlers-office-kit.js fix),
+ *    instead of row.id (which is just the row's own database primary key, never the
+ *    Uniform Product ID, and therefore could never match a dropdown option).
  */
 
 window.OfficeState = {
@@ -739,6 +745,9 @@ async function saveOfficeForm(e) {
 
 /**
  * 💡 EDIT OFFICE ENTRY (Product ID RegEx Auto-Detection Fix)
+ * 🔧 FIX #1: Match dropdown using row.productId (the actual Uniform Product ID persisted
+ * by the backend) instead of row.id (the row's own database primary key, which could
+ * never match a Product ID option and so the dropdown was always left blank on Edit).
  */
 async function editOfficeEntry(uniqueId) {
   var row = window.OfficeState.activeData.find(function(item) { return item.uniqueId === uniqueId; });
@@ -764,26 +773,28 @@ async function editOfficeEntry(uniqueId) {
   }
 
   // 3. Product ID Auto-Detection & Dropdown Selection
-var prodSelect = document.getElementById('office-product-id');
-if (prodSelect) {
-  var extractedPid = extractProductIdFromDescription(row.description);
-  var pidToSearch = (row.id && String(row.id).trim()) ? String(row.id).trim() : extractedPid;
-  
-  if (pidToSearch && pidToSearch.trim()) {
-    // ✅ Safety cleanup: remove "PID " prefix if present
-    pidToSearch = pidToSearch.replace(/^PID\s*/i, '').trim();
-    var searchTerm = pidToSearch.toLowerCase();
-    
-    var matchingOpt = Array.from(prodSelect.options).find(function(opt) {
-      var optValue = (opt.value || '').toLowerCase();
-      var optDataPid = (opt.getAttribute('data-pid') || '').toLowerCase();
-      var optText = (opt.text || '').toLowerCase();
-      
-      return optValue.includes(searchTerm) || 
-             optDataPid === searchTerm ||  // ✅ Exact match added
-             optText.includes(searchTerm);
-    });
-      
+  var prodSelect = document.getElementById('office-product-id');
+  if (prodSelect) {
+    var extractedPid = extractProductIdFromDescription(row.description);
+    // 🔧 FIX #1: prefer the persisted productId field; only fall back to description
+    // parsing for legacy rows saved before this fix.
+    var pidToSearch = (row.productId && String(row.productId).trim()) ? String(row.productId).trim() : extractedPid;
+
+    if (pidToSearch && pidToSearch.trim()) {
+      // ✅ Safety cleanup: remove "PID " prefix if present
+      pidToSearch = pidToSearch.replace(/^PID\s*/i, '').trim();
+      var searchTerm = pidToSearch.toLowerCase();
+
+      var matchingOpt = Array.from(prodSelect.options).find(function(opt) {
+        var optValue = (opt.value || '').toLowerCase();
+        var optDataPid = (opt.getAttribute('data-pid') || '').toLowerCase();
+        var optText = (opt.text || '').toLowerCase();
+
+        return optDataPid === searchTerm ||  // ✅ Exact match preferred
+               optValue.includes(searchTerm) ||
+               optText.includes(searchTerm);
+      });
+
       if (matchingOpt) {
         prodSelect.value = matchingOpt.value;
       }
