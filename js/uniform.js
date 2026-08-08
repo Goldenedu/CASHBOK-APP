@@ -121,7 +121,7 @@ function renderUniformTable() {
     const totStockVal = Number(row.total_stock_value ?? row.totalStockValue ?? (curQty * unitPrice));
 
     const rawNo = row.no !== undefined && row.no !== null && row.no !== "" ? row.no : (idx + 1);
-    const displayNo = parseInt(rawNo, 10) || (idx + 1);
+    const displayNo = (window.UniformState.page - 1) * window.UniformState.limit + idx + 1;
 
     return `
       <tr class="hover:bg-slate-800/20 text-slate-300">
