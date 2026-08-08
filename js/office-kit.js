@@ -1,7 +1,7 @@
 /**
  * GOLDEN ERP SYSTEM - OFFICE EXPENSE & INVENTORY MODULE 
- * File: js/office.js 
- * 💡 19-Column Schema + Strict Search Criteria + Transfer Auto-Description + Universal Lock Engine + Comma-Safe Uniform Profit Engine
+ * File: js/office-kit.js
+ * 💡 Powered by Cloudflare D1 SQL Database & Current FY Analytics
  */
 
 window.OfficeState = {
@@ -19,6 +19,19 @@ window.currentExpenseBook = 'office';
 var searchTimeoutOffice = null;
 
 /**
+ * 💡 Safe HTML String Escaper
+ */
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/**
  * 💡 Switch between Office and Kitchen Expense Books
  */
 function switchExpenseBook(bookType) {
@@ -27,14 +40,7 @@ function switchExpenseBook(bookType) {
 }
 
 /**
- * 🛠️ 2026-07-30 FIX — Single source of truth for "which book am I actually on".
- * Every place that used to hardcode "Office" (modal title, bookName sent to the
- * server, category/method/transfer dropdown list) now reads this instead, so
- * Kitchen Exp Book entries are saved to Kitchen Exp Book — not Office Exp Book —
- * and the Kitchen-specific category list (Rice & Oil, Fish & meat/Eggs, ...) is
- * shown instead of Office's category list.
- * Uses the same dual check as loadOfficeData() (currentExpenseBook OR
- * AppState.currentModule) so it stays correct no matter which one fired first.
+ * 💡 Get Context for Expense Books (Office / Kitchen)
  */
 function getExpenseBookContext() {
   const isKitchen = (window.currentExpenseBook === 'kitchen' || window.AppState?.currentModule === 'kitchen');
@@ -67,7 +73,23 @@ function parseCleanNum(val) {
 }
 
 /**
- * 💡 Strict Filter Function for Office Expenses
+ * 💡 Helper to normalize Uniform Item Properties (Database Snake_case vs CamelCase Safe-Getter)
+ */
+function getUniformItemProps(p) {
+  if (!p) return { id: '', name: '', type: '', size: '', unitPrice: 0, sellingPrice: 0, stock: 0 };
+  return {
+    id: String(p.productId || p.product_id || p.id || '').trim(),
+    name: String(p.productName || p.product_name || '').trim(),
+    type: String(p.type || p.product_type || '').trim(),
+    size: String(p.size || p.product_size || '').trim(),
+    unitPrice: parseCleanNum(p.unitPrice !== undefined ? p.unitPrice : p.unit_price),
+    sellingPrice: parseCleanNum(p.sellingPrice !== undefined ? p.sellingPrice : p.selling_price),
+    stock: parseCleanNum(p.currentQty !== undefined ? p.currentQty : (p.current_qty !== undefined ? p.current_qty : (p.openingStock || p.opening_stock || 0)))
+  };
+}
+
+/**
+ * 💡 Strict Filter Function for Office Expenses (Client-side Search Backup)
  */
 function filterOfficeData(list = [], searchVal = '', fromDate = '', toDate = '') {
   return list.filter(row => {
@@ -83,8 +105,9 @@ function filterOfficeData(list = [], searchVal = '', fromDate = '', toDate = '')
     const cat = String(row.category || '').toLowerCase();
     const debit = String(row.debit || '');
     const credit = String(row.credit || '');
+    const vrNo = String(row.vrNo || row.vr_no || '').toLowerCase();
 
-    return desc.includes(q) || cat.includes(q) || debit.includes(q) || credit.includes(q);
+    return desc.includes(q) || cat.includes(q) || debit.includes(q) || credit.includes(q) || vrNo.includes(q);
   });
 }
 
@@ -97,7 +120,7 @@ function clearDateFilterOffice() {
 }
 
 /**
- * 💡 Dropdown Options များကို Config.js မှ Dynamic ဖြည့်ပေးခြင်း
+ * 💡 Populate Dropdown Options from Config.js
  */
 function populateDropdownsOffice() {
   const ctx = getExpenseBookContext();
@@ -127,7 +150,7 @@ function populateDropdownsOffice() {
 }
 
 /**
- * 💡 Category ပြောင်းလဲမှုပေါ် မူတည်၍ Form Controls များကို Dynamic ပိတ်/ဖွင့် လုပ်ပေးခြင်း
+ * 💡 Dynamic Form Controls based on Selected Category
  */
 async function onCategoryChangeOffice() {
   const category = document.getElementById('office-category') ? document.getElementById('office-category').value : '';
@@ -157,7 +180,6 @@ async function onCategoryChangeOffice() {
     if (methodSelect) methodSelect.disabled = false;
     if (transSelect) transSelect.disabled = false;
 
-    // Fetch and ensure Product ID dropdown options are always built
     await fetchUniformProductsListOffice();
     onProductChangeOffice();
   } 
@@ -187,7 +209,7 @@ async function onCategoryChangeOffice() {
 }
 
 /**
- * 💡 Transfer Target ရွေးချယ်ပါက Description တွင် Auto Text ထည့်သွင်းပေးခြင်း
+ * 💡 Auto-fill Description on Transfer Selection
  */
 function onTransferTargetChangeOffice() {
   const transSelect = document.getElementById('office-transfer');
@@ -201,7 +223,7 @@ function onTransferTargetChangeOffice() {
 }
 
 /**
- * 💡 Uniform Product ID သို့မဟုတ် QTY ပြောင်းလဲပါက Auto Description (- 4Nos) နှင့် Profit Preview Auto တွက်ပေးခြင်း
+ * 💡 Handle Product Selection for Advance Uniform
  */
 function onProductChangeOffice() {
   const productId = document.getElementById('office-product-id') ? document.getElementById('office-product-id').value : '';
@@ -210,20 +232,25 @@ function onProductChangeOffice() {
   const unit = parseCleanNum(unitEl ? unitEl.value : 1) || 1;
 
   if (productId && window.OfficeState.uniformProducts && window.OfficeState.uniformProducts.length > 0) {
-    const prod = window.OfficeState.uniformProducts.find(p => String(p.productId).trim() === String(productId).trim());
-    if (prod) {
+    const rawProd = window.OfficeState.uniformProducts.find(p => {
+      const item = getUniformItemProps(p);
+      return item.id.toLowerCase() === String(productId).trim().toLowerCase();
+    });
+
+    if (rawProd) {
+      const prod = getUniformItemProps(rawProd);
       const descEl = document.getElementById('office-description');
       if (descEl) {
-        descEl.value = `${prod.productId} ${prod.productName} ${prod.type || ''} ${prod.size || ''} - ${unit}Nos`.replace(/\s+/g, ' ').trim();
+        descEl.value = `${prod.id} ${prod.name} ${prod.type} ${prod.size} - ${unit}Nos`.replace(/\s+/g, ' ').trim();
       }
 
       const unitPriceEl = document.getElementById('office-unit-price');
       if (unitPriceEl && parseCleanNum(unitPriceEl.value) === 0) {
-        unitPriceEl.value = parseCleanNum(prod.unitPrice) || 0;
+        unitPriceEl.value = prod.unitPrice || 0;
       }
 
       if (stockBadge) {
-        stockBadge.innerText = `Stock: ${prod.currentQty !== undefined ? prod.currentQty : (prod.openingStock || 0)}`;
+        stockBadge.innerText = `Stock: ${prod.stock}`;
         stockBadge.classList.remove('hidden');
       }
 
@@ -237,7 +264,7 @@ function onProductChangeOffice() {
 }
 
 /**
- * 💡 Debit & Profit Preview Amount Auto တွက်ချက်ပေးခြင်း
+ * 💡 Debit & Uniform Profit Preview Calculator
  */
 function calculateDebitOffice() {
   const categoryEl = document.getElementById('office-category');
@@ -250,22 +277,25 @@ function calculateDebitOffice() {
     const unitPrice = parseCleanNum(document.getElementById('office-unit-price')?.value);
     const creditVal = parseCleanNum(document.getElementById('office-credit')?.value);
 
-    // Qty အလိုက် Auto Debit တွက်ပေးခြင်း
     if (creditVal === 0 && document.getElementById('office-debit')) {
       document.getElementById('office-debit').value = unit * unitPrice;
     }
 
     if (productId && window.OfficeState.uniformProducts && window.OfficeState.uniformProducts.length > 0) {
-      const prod = window.OfficeState.uniformProducts.find(p => String(p.productId).trim() === String(productId).trim());
-      if (prod) {
-        // Description ထဲက Qty ကို Dynamic Update လုပ်ပေးခြင်း
+      const rawProd = window.OfficeState.uniformProducts.find(p => {
+        const item = getUniformItemProps(p);
+        return item.id.toLowerCase() === String(productId).trim().toLowerCase();
+      });
+
+      if (rawProd) {
+        const prod = getUniformItemProps(rawProd);
         const descEl = document.getElementById('office-description');
         if (descEl && descEl.value.includes('-')) {
           const baseDesc = descEl.value.split('-')[0].trim();
           descEl.value = `${baseDesc} - ${unit}Nos`;
         }
 
-        const sellingPrice = parseCleanNum(prod.sellingPrice);
+        const sellingPrice = prod.sellingPrice;
         const profitPerUnit = sellingPrice - unitPrice;
         const totalProfit = unit * profitPerUnit;
 
@@ -279,35 +309,40 @@ function calculateDebitOffice() {
 }
 
 /**
- * 💡 Fetch Uniform Product List (Dropdown Options အမြဲပေါ်စေရန် ပြင်ဆင်ထားပါသည်)
+ * 💡 Fetch Uniform Products List for Dropdown (Fixed Snake_case Field Normalization)
  */
 async function fetchUniformProductsListOffice() {
   const select = document.getElementById('office-product-id');
 
-  // Cache ရှိပါက Dropdown HTML Options များကို အရင် ရေးဆွဲပေးမည်
+  const buildOptions = (list) => {
+    if (!select) return;
+    select.innerHTML = `<option value="">-- Select Product ID --</option>` +
+      list.map(p => {
+        const item = getUniformItemProps(p);
+        const sizeStr = item.size ? ` (${item.size})` : '';
+        return `<option value="${item.id}">${item.id} - ${item.name}${sizeStr}</option>`;
+      }).join('');
+  };
+
   if (window.OfficeState.uniformProducts && window.OfficeState.uniformProducts.length > 0) {
-    if (select) {
-      select.innerHTML = `<option value="">-- Select Product ID --</option>` +
-        window.OfficeState.uniformProducts.map(p => `<option value="${p.productId}">${p.productId} - ${p.productName} (${p.size})</option>`).join('');
-    }
+    buildOptions(window.OfficeState.uniformProducts);
     return;
   }
 
-  // Cache မရှိသေးပါက API မှ ဖတ်ယူမည်
   try {
-    const res = await callApi('getUniformData', { page: 1, limit: 1000 }, 'GET');
+    const res = await typeof callApi === 'function' ? callApi('getUniformData', { page: 1, limit: 1000 }, 'GET') : null;
     if (res && res.data) {
       window.OfficeState.uniformProducts = res.data;
-      if (select) {
-        select.innerHTML = `<option value="">-- Select Product ID --</option>` +
-          res.data.map(p => `<option value="${p.productId}">${p.productId} - ${p.productName} (${p.size})</option>`).join('');
-      }
+      buildOptions(res.data);
     }
   } catch (err) {
     console.warn("Failed to fetch uniform products:", err);
   }
 }
 
+/**
+ * 💡 Load Expense Data from Cloudflare D1 Backend
+ */
 async function loadOfficeData(isSilent = false, forceRefresh = false) {
   const state = window.OfficeState;
   const ctx = getExpenseBookContext();
@@ -316,10 +351,7 @@ async function loadOfficeData(isSilent = false, forceRefresh = false) {
   updateOfficeAddButtonLabel();
 
   try {
-    const cacheKey = `getExpenseData_${JSON.stringify({ bookName, page: state.page, limit: state.limit, searchVal: state.searchVal })}`;
-    const hasCache = !forceRefresh && !!window.getApiCache(cacheKey);
-
-    if (!isSilent && !hasCache && typeof toggleLoading === 'function') {
+    if (!isSilent && typeof toggleLoading === 'function') {
       toggleLoading(true);
     }
 
@@ -349,6 +381,9 @@ async function loadOfficeData(isSilent = false, forceRefresh = false) {
   }
 }
 
+/**
+ * 💡 Update Top 4 Stat Cards with Current FY Analytics
+ */
 function updateStatsOffice() {
   const stats = window.OfficeState.stats;
   const setT = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
@@ -520,7 +555,7 @@ function parseLiabilityAmount(val) {
 }
 
 /**
- * 💡 Save / Update Office Entry (Calculates and Injects Clean Profit Payload + Triggers Uniform Sync)
+ * 💡 Save / Update Expense Entry (Calculates Uniform Profit + Refreshes D1 State)
  */
 async function saveOfficeForm(e) {
   if (e && e.preventDefault) e.preventDefault();
@@ -532,12 +567,15 @@ async function saveOfficeForm(e) {
   const unit = parseCleanNum(document.getElementById('office-unit')?.value);
   const unitPrice = parseCleanNum(document.getElementById('office-unit-price')?.value);
 
-  // 💡 COMMA-SAFE UNIFORM PROFIT CALCULATION FOR PAYLOAD
   let calculatedProfit = 0;
   if ((category === "Advance Uniform" || category === "Advance Unifrom") && productId && window.OfficeState.uniformProducts) {
-    const prod = window.OfficeState.uniformProducts.find(p => String(p.productId).trim() === String(productId).trim());
-    if (prod) {
-      const sellingPrice = parseCleanNum(prod.sellingPrice);
+    const rawProd = window.OfficeState.uniformProducts.find(p => {
+      const item = getUniformItemProps(p);
+      return item.id.toLowerCase() === String(productId).trim().toLowerCase();
+    });
+    if (rawProd) {
+      const prod = getUniformItemProps(rawProd);
+      const sellingPrice = prod.sellingPrice;
       const profitPerUnit = sellingPrice - unitPrice;
       calculatedProfit = unit * profitPerUnit;
     }
@@ -558,7 +596,7 @@ async function saveOfficeForm(e) {
     transfer: document.getElementById('office-transfer')?.value || '',
     description: document.getElementById('office-description')?.value || '',
     bookName: getExpenseBookContext().bookName,
-    createdBy: (window.AppState && window.AppState.currentUser) ? window.AppState.currentUser : "System"
+    createdBy: (window.AppState && window.AppState.currentUser) ? window.AppState.currentUser : "Admin"
   };
 
   closeOfficeModal();
@@ -577,7 +615,6 @@ async function saveOfficeForm(e) {
       }
       if (window.BankCache) window.BankCache = { bank: null, cash: null, kitchen: null };
       
-      // 💡 Advance Uniform ဖြစ်ပါက Uniform Ledger Cache ကိုပါ သန့်ရှင်းပြီး Sync လုပ်ပေးမည်
       if (category === "Advance Uniform" || category === "Advance Unifrom") {
         window.OfficeState.uniformProducts = [];
         if (typeof window.loadUniformData === 'function') {
@@ -585,7 +622,7 @@ async function saveOfficeForm(e) {
         }
       }
 
-      loadOfficeData(true);
+      loadOfficeData(true, true);
     } else {
       if (typeof showToast === 'function') showToast("ERROR", "မအောင်မြင်ပါ: " + (response ? response.message : ""));
     }
@@ -658,7 +695,7 @@ async function deleteOfficeEntry(uniqueId) {
       if (response && response.success) {
         if (typeof showToast === 'function') showToast("SUCCESS", "စာရင်းအား အောင်မြင်စွာ ဖျက်သိမ်းပြီးပါပြီ။");
         if (window.BankCache) window.BankCache = { bank: null, cash: null, kitchen: null };
-        loadOfficeData(true);
+        loadOfficeData(true, true);
       } else {
         if (typeof showToast === 'function') showToast("ERROR", "ဖျက်သိမ်းမှု မအောင်မြင်ပါ: " + (response ? response.message : ""));
       }
