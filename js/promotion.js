@@ -10,6 +10,19 @@ var gPromotionFyFilter = '';
 var gPromotionCatFilter = '';
 
 /**
+ * 💡 Safe Native DOM HTML Escaper
+ */
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  if (typeof window.escapeHtml === 'function' && window.escapeHtml !== escapeHtml) {
+    return window.escapeHtml(str);
+  }
+  var div = document.createElement('div');
+  div.textContent = String(str);
+  return div.innerHTML;
+}
+
+/**
  * 💡 Generate Dynamic 3-Year Fiscal Years
  */
 function getDynamicFiscalYears() {
@@ -73,7 +86,7 @@ function populatePromotionDropdowns() {
 /**
  * 💡 Load Promotion Rates Matrix Data
  */
-async function loadPromotionData(useCache = false) {
+async function loadPromotionData(useCache) {
   try {
     if (typeof toggleLoading === 'function') toggleLoading(true);
     populatePromotionDropdowns();
@@ -84,7 +97,7 @@ async function loadPromotionData(useCache = false) {
       gPromotionData = res.data || [];
       applyPromotionFilters();
     } else {
-      if (typeof showToast === 'function') showToast("ERROR", res.message || "Promotion Rate အချက်အလက်များ ရယူ၍ မရပါ။");
+      if (typeof showToast === 'function') showToast("ERROR", res?.message || "Promotion Rate အချက်အလက်များ ရယူ၍ မရပါ။");
     }
   } catch (err) {
     if (typeof showToast === 'function') showToast("ERROR", "ဆာဗာ ချိတ်ဆက်မှု အမှား: " + err.message);
@@ -280,7 +293,7 @@ async function savePromotionForm(event) {
       closePromotionModal();
       loadPromotionData(false);
     } else {
-      if (typeof showToast === 'function') showToast("ERROR", res.message || "သိမ်းဆည်းမှု မအောင်မြင်ပါ။");
+      if (typeof showToast === 'function') showToast("ERROR", res?.message || "သိမ်းဆည်းမှု မအောင်မြင်ပါ။");
     }
   } catch (err) {
     if (typeof showToast === 'function') showToast("ERROR", "ဆာဗာ ချိတ်ဆက်မှု အမှား: " + err.message);
@@ -303,7 +316,7 @@ async function deletePromotionEntry(uniqueId) {
       if (typeof showToast === 'function') showToast("SUCCESS", "Promotion Rate နှုန်းထားအား အောင်မြင်စွာ ဖျက်သိမ်းပြီးပါပြီ။");
       loadPromotionData(false);
     } else {
-      if (typeof showToast === 'function') showToast("ERROR", res.message || "ဖျက်သိမ်းမှု မအောင်မြင်ပါ။");
+      if (typeof showToast === 'function') showToast("ERROR", res?.message || "ဖျက်သိမ်းမှု မအောင်မြင်ပါ။");
     }
   } catch (err) {
     if (typeof showToast === 'function') showToast("ERROR", "ဆာဗာ ချိတ်ဆက်မှု အမှား: " + err.message);
@@ -332,7 +345,7 @@ function exportToCSVPromotion() {
   a.click();
 }
 
-// 💡 Export functions to global window object for app.js integration
+// 💡 Export functions to global window object
 window.loadPromotionData = loadPromotionData;
 window.openAddModalPromotion = openAddModalPromotion;
 window.closePromotionModal = closePromotionModal;
@@ -340,3 +353,4 @@ window.savePromotionForm = savePromotionForm;
 window.editPromotionEntry = editPromotionEntry;
 window.deletePromotionEntry = deletePromotionEntry;
 window.exportToCSVPromotion = exportToCSVPromotion;
+window.onSearchInputPromotion = onSearchInputPromotion;
